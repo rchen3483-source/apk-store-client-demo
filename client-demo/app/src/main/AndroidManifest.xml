@@ -3,6 +3,7 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
         android:label="APK 商店 Demo"
         android:resizeableActivity="true"
         android:theme="@style/AppTheme">

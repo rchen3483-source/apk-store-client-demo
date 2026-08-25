@@ -671,4 +671,3 @@ public class MainActivity extends Activity {
         void onSelected(String value);
     }
 }
-
