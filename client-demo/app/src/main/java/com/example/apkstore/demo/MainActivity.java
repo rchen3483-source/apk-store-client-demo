@@ -231,18 +231,49 @@ public class MainActivity extends Activity {
     private View createSelectionSummary() {
         LinearLayout panel = cardLayout();
         panel.addView(titleText("版本中心", 20));
-        panel.addView(normalText("产品：" + selectedAppCode + "    环境：" + selectedEnvCode));
-        Button changeButton = secondaryButton("切换产品/环境");
-        changeButton.setOnClickListener(new View.OnClickListener() {
+        panel.addView(smallText("产品和环境选项由后端接口返回（当前为 Mock 数据）"));
+        List<AppRelease> products = dataProvider.getProductOptions();
+        String[] productValues = new String[products.size()];
+        for (int i = 0; i < products.size(); i++) {
+            productValues[i] = products.get(i).getAppName() + "（" + products.get(i).getAppCode() + "）";
+        }
+        panel.addView(createSpinner("产品", productValues, productDisplayValue(products, selectedAppCode),
+                new SpinnerAction() {
+                    @Override
+                    public void onSelected(String value) {
+                        for (AppRelease product : products) {
+                            if (value.equals(product.getAppName() + "（" + product.getAppCode() + "）")
+                                    && !product.getAppCode().equals(selectedAppCode)) {
+                                selectedAppCode = product.getAppCode();
+                                List<String> environments = dataProvider.getEnvironmentOptions(selectedAppCode);
+                                selectedEnvCode = environments.isEmpty() ? null : environments.get(0);
+                                renderActiveTab();
+                                break;
+                            }
+                        }
+                    }
+                }));
+        List<String> environments = dataProvider.getEnvironmentOptions(selectedAppCode);
+        String[] environmentValues = environments.toArray(new String[0]);
+        panel.addView(createSpinner("环境", environmentValues, selectedEnvCode, new SpinnerAction() {
             @Override
-            public void onClick(View view) {
-                selectedAppCode = null;
-                selectedEnvCode = null;
-                renderActiveTab();
+            public void onSelected(String value) {
+                if (!value.equals(selectedEnvCode)) {
+                    selectedEnvCode = value;
+                    renderActiveTab();
+                }
             }
-        });
-        panel.addView(changeButton, fullWidthParams());
+        }));
         return panel;
+    }
+
+    private String productDisplayValue(List<AppRelease> products, String appCode) {
+        for (AppRelease product : products) {
+            if (appCode.equals(product.getAppCode())) {
+                return product.getAppName() + "（" + product.getAppCode() + "）";
+            }
+        }
+        return products.isEmpty() ? "" : products.get(0).getAppName() + "（" + products.get(0).getAppCode() + "）";
     }
 
     private List<AppRelease> filterReleases() {
