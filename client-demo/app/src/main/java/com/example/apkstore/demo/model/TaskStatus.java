@@ -19,6 +19,11 @@ public enum TaskStatus {
     DOWNLOADING("下载中"),
 
     /**
+     * APK 已下载完成，等待用户确认安装。
+     */
+    DOWNLOADED("待安装"),
+
+    /**
      * 校验 SHA-256。
      */
     VERIFYING("校验中"),
@@ -53,3 +58,4 @@ public enum TaskStatus {
         return displayName;
     }
 }
+
