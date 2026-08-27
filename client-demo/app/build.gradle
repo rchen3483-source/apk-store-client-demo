@@ -6,6 +6,10 @@ android {
     namespace "com.example.apkstore.demo"
     compileSdk 35
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.example.apkstore.demo"
         minSdk 26
