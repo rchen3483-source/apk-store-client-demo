@@ -1,45 +1,36 @@
 # APK 商店客户端 Demo
 
-这是一个原生 Android Java Demo 工程，用本地 mock 数据演示内部 APK 商店客户端能力。
+原生 Android Java MVP 客户端，直接调用研发环境 `admin-service` 的 APK 商店接口。
 
-## 功能
+## 当前功能
 
-- 模拟企业登录。
-- 展示多应用、多环境、多渠道 APK 列表。
-- 按环境、渠道、更新状态筛选。
-- 展示包名、版本号、构建号、APK 大小、SHA-256、更新说明。
-- 用 mock 本机安装版本计算更新状态。
-- 模拟下载进度、SHA-256 校验、安装成功和结果上报。
-- 展示下载任务、操作日志、设置和 mock 数据重置。
+- 从 `/admin/v1/apk-store/apps` 加载产品（`appCode`）。
+- 根据产品从后端加载环境（`envCode`）。
+- 加载最新版本和最近 5 个历史版本。
+- 按版本号或构建号调用服务端搜索历史版本。
+- 通过版本 `releaseId` 获取下载地址，显示真实下载进度。
+- 下载完成后显示安装按钮，并使用 Android `FileProvider` 打开系统安装确认页。
+- 根据设备已安装包的真实 `versionCode` 显示未安装、可更新、已最新等状态。
 
-## 不包含
+## 研发环境地址
 
-- 不连接真实服务端。
-- 不真实下载 APK。
-- 不调起系统安装器。
-- 不读取真实手机已安装 App。
+默认地址配置在 `app/build.gradle` 的 `buildConfigField`：
 
-## 构建方式
-
-当前机器未检测到 Java、Gradle 和 Android SDK，因此这里先交付可构建源码。
-
-在有 Android Studio 的机器上：
-
-1. 打开 `client-demo/`。
-2. 等待 Gradle Sync 完成。
-3. 选择 `app` 模块。
-4. 执行 `Build > Build Bundle(s) / APK(s) > Build APK(s)`。
-5. APK 一般生成在 `client-demo/app/build/outputs/apk/debug/app-debug.apk`。
-
-命令行环境具备 Android SDK 时，也可以执行：
-
-```bash
-./gradlew :app:assembleDebug
+```text
+http://dev-transsaas.iflytranslate.com/admin
 ```
 
-Windows 下如没有 Gradle Wrapper，可用 Android Studio 先完成同步，或在具备 Gradle 的环境执行：
+如研发环境域名调整，只需修改该字段后重新构建。
+
+## 构建
+
+工程使用 Android Gradle Plugin 8.5.2、compileSdk 35、minSdk 26，并依赖 AndroidX Core 1.13.1。
 
 ```bash
-gradle :app:assembleDebug
+gradle -p client-demo :app:assembleDebug
 ```
+
+APK 输出路径：`client-demo/app/build/outputs/apk/debug/app-debug.apk`。
+
+本工作区未检测到 Java/Gradle/Android SDK，无法在本地完成 APK 编译；GitHub Actions 或 Android Studio 可直接构建。
 

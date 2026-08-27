@@ -13,6 +13,8 @@ public class AppRelease implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long releaseId;
+    /** 服务端字符串 releaseId；保留 releaseId 字段兼容旧 Mock 数据。 */
+    private String remoteReleaseId;
     private String appCode;
     private String appName;
     private String packageName;
@@ -32,6 +34,10 @@ public class AppRelease implements Serializable {
 
     public Long getReleaseId() {
         return releaseId;
+    }
+
+    public String getRemoteReleaseId() {
+        return remoteReleaseId;
     }
 
     public String getAppCode() {
@@ -86,6 +92,10 @@ public class AppRelease implements Serializable {
         this.releaseId = releaseId;
     }
 
+    public void setRemoteReleaseId(String remoteReleaseId) {
+        this.remoteReleaseId = remoteReleaseId;
+    }
+
     public void setAppCode(String appCode) {
         this.appCode = appCode;
     }
@@ -134,3 +144,4 @@ public class AppRelease implements Serializable {
         this.releaseNotes = releaseNotes;
     }
 }
+

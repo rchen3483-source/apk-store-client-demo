@@ -12,5 +12,11 @@ android {
         targetSdk 35
         versionCode 1
         versionName "1.0.0"
+        buildConfigField "String", "APK_STORE_BASE_URL", "\"http://dev-transsaas.iflytranslate.com/admin\""
     }
 }
+
+dependencies {
+    implementation "androidx.core:core:1.13.1"
+}
+
