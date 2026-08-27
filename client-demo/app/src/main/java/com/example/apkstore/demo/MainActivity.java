@@ -154,7 +154,16 @@ public class MainActivity extends Activity {
                         public void run() {
                             products = result;
                             productsLoaded = true;
-                            renderPage();
+                            if (selectedAppCode == null && !products.isEmpty()) {
+                                selectedAppCode = products.get(0).getAppCode();
+                                selectedEnvCode = null;
+                                environments = new ArrayList<>();
+                                environmentsLoaded = false;
+                                renderPage();
+                                loadEnvironments();
+                            } else {
+                                renderPage();
+                            }
                         }
                     });
                 } catch (Exception exception) {
@@ -181,8 +190,13 @@ public class MainActivity extends Activity {
                         public void run() {
                             environments = result;
                             environmentsLoaded = true;
-                            selectedEnvCode = null;
+                            if (selectedEnvCode == null && !environments.isEmpty()) {
+                                selectedEnvCode = environments.get(0).getCode();
+                            }
                             renderPage();
+                            if (selectedEnvCode != null) {
+                                loadVersions();
+                            }
                         }
                     });
                 } catch (Exception exception) {
@@ -309,6 +323,42 @@ public class MainActivity extends Activity {
         LinearLayout panel = cardLayout();
         panel.addView(titleText("版本中心", 20));
         panel.addView(normalText("产品：" + appName(selectedAppCode) + " · 环境：" + environmentName(selectedEnvCode)));
+        String[] productValues = new String[products.size()];
+        for (int i = 0; i < products.size(); i++) {
+            productValues[i] = products.get(i).getAppName() + "（" + products.get(i).getAppCode() + "）";
+        }
+        panel.addView(createSpinner("选择产品", productValues, productDisplayValue(), new SpinnerAction() {
+            @Override
+            public void onSelected(String value) {
+                for (AppRelease product : products) {
+                    String display = product.getAppName() + "（" + product.getAppCode() + "）";
+                    if (display.equals(value) && !product.getAppCode().equals(selectedAppCode)) {
+                        selectedAppCode = product.getAppCode();
+                        selectedEnvCode = null;
+                        environments = new ArrayList<>();
+                        environmentsLoaded = false;
+                        loadEnvironments();
+                        break;
+                    }
+                }
+            }
+        }));
+        String[] values = new String[environments.size()];
+        for (int i = 0; i < environments.size(); i++) {
+            values[i] = environments.get(i).toString();
+        }
+        panel.addView(createSpinner("选择环境", values, environmentDisplayValue(), new SpinnerAction() {
+            @Override
+            public void onSelected(String value) {
+                for (ApiClient.EnvironmentOption option : environments) {
+                    if (option.toString().equals(value) && !option.getCode().equals(selectedEnvCode)) {
+                        selectedEnvCode = option.getCode();
+                        loadVersions();
+                        break;
+                    }
+                }
+            }
+        }));
         Button refreshButton = secondaryButton("刷新版本");
         refreshButton.setOnClickListener(new View.OnClickListener() {
             @Override
