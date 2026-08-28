@@ -56,8 +56,15 @@ public final class ApiClient {
         JSONObject requestBody = new JSONObject();
         requestBody.put("appCode", appCode);
         requestBody.put("envCode", envCode);
-        JSONObject data = postObject("/v1/apk-store/apps/latest", requestBody);
-        return parseRelease(data);
+        try {
+            JSONObject data = postObject("/v1/apk-store/apps/latest", requestBody);
+            return parseRelease(data);
+        } catch (ApiBusinessException exception) {
+            if ("404002".equals(exception.getCode())) {
+                return null;
+            }
+            throw exception;
+        }
     }
 
     public List<AppRelease> getHistory(String appCode, String envCode, String keyword) throws Exception {
@@ -181,7 +188,8 @@ public final class ApiClient {
             }
             JSONObject envelope = new JSONObject(body);
             if (!"000000".equals(envelope.optString("code"))) {
-                throw new IllegalStateException(envelope.optString("desc", "接口返回业务失败"));
+                throw new ApiBusinessException(envelope.optString("code"),
+                        envelope.optString("desc", "接口返回业务失败"));
             }
             return envelope;
         } finally {
@@ -231,6 +239,19 @@ public final class ApiClient {
         void onProgress(long completed, long total);
     }
 
+    private static final class ApiBusinessException extends IllegalStateException {
+        private final String code;
+
+        private ApiBusinessException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+
+        private String getCode() {
+            return code;
+        }
+    }
+
     public static final class EnvironmentOption {
         private final String code;
         private final String name;
@@ -278,4 +299,3 @@ public final class ApiClient {
         }
     }
 }
-
