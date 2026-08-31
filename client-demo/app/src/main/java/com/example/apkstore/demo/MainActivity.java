@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
         floatingBackButton = createBackButton();
         FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(40), dp(40));
         backParams.gravity = Gravity.TOP | Gravity.START;
-        backParams.setMargins(dp(10), dp(8), 0, 0);
+        backParams.setMargins(dp(8), dp(2), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
@@ -526,6 +526,7 @@ public class MainActivity extends Activity {
                 view.setTextColor(COLOR_TEXT);
                 view.setGravity(Gravity.CENTER_VERTICAL);
                 view.setSingleLine(true);
+                view.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 return view;
             }
         };
@@ -558,7 +559,7 @@ public class MainActivity extends Activity {
         arrow.setOnClickListener(view -> spinner.performClick());
         FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(28), -1, Gravity.END);
         spinnerContainer.addView(arrow, arrowParams);
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(160), dp(36));
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(132), dp(36));
         row.addView(spinnerContainer, spinnerParams);
         return row;
     }
@@ -602,9 +603,13 @@ public class MainActivity extends Activity {
         UpdateStatus status = calculateStatus(release);
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.TOP);
-        header.addView(createAppIdentity(release, status), new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(createEnvironmentSpinner());
-        card.addView(header);
+        LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
+        identityParams.setMargins(0, 0, dp(8), 0);
+        header.addView(createAppIdentity(release, status), identityParams);
+        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(132), dp(36)));
+        LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
+        headerParams.setMargins(0, 0, 0, dp(8));
+        card.addView(header, headerParams);
         card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 17));
         card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
         Button actionButton = primaryButton(getActionText(status));
@@ -629,17 +634,24 @@ public class MainActivity extends Activity {
         AppRelease product = findProduct(selectedAppCode);
         String displayName = product == null ? appName(selectedAppCode) : product.getAppName();
         LinearLayout identity = horizontalLayout();
-        identity.setGravity(Gravity.CENTER_VERTICAL);
-        identity.addView(appIcon(displayName), new LinearLayout.LayoutParams(dp(72), dp(72)));
+        identity.setGravity(Gravity.TOP);
+        identity.addView(appIcon(displayName), new LinearLayout.LayoutParams(dp(64), dp(64)));
         LinearLayout details = verticalLayout();
-        details.setPadding(dp(14), 0, 0, 0);
-        details.addView(titleText(displayText(displayName, "未命名应用"), 22));
+        details.setPadding(dp(12), 0, 0, 0);
+        TextView appTitle = titleText(displayText(displayName, "未命名应用"), 20);
+        appTitle.setSingleLine(true);
+        appTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(appTitle);
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.TOP);
-        header.addView(identity, new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(createEnvironmentSpinner());
-        card.addView(header);
+        LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
+        identityParams.setMargins(0, 0, dp(8), 0);
+        header.addView(identity, identityParams);
+        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(132), dp(36)));
+        LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
+        headerParams.setMargins(0, 0, 0, dp(8));
+        card.addView(header, headerParams);
         card.addView(titleText(title, 17));
         card.addView(bodyText(description));
         return card;
@@ -729,11 +741,14 @@ public class MainActivity extends Activity {
 
     private View createAppIdentity(AppRelease release, UpdateStatus status) {
         LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(appIcon(release.getAppName()), new LinearLayout.LayoutParams(dp(72), dp(72)));
+        row.setGravity(Gravity.TOP);
+        row.addView(appIcon(release.getAppName()), new LinearLayout.LayoutParams(dp(64), dp(64)));
         LinearLayout details = verticalLayout();
-        details.setPadding(dp(14), 0, 0, 0);
-        details.addView(titleText(displayText(release.getAppName(), "未命名应用"), 22));
+        details.setPadding(dp(12), 0, 0, 0);
+        TextView appTitle = titleText(displayText(release.getAppName(), "未命名应用"), 20);
+        appTitle.setSingleLine(true);
+        appTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(appTitle);
         details.addView(statusBadge(status));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         return row;
