@@ -18,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -74,6 +75,7 @@ public class MainActivity extends Activity {
     private final Map<Long, File> downloadedFiles = new HashMap<>();
 
     private LinearLayout contentLayout;
+    private View floatingBackButton;
     private SwipeRefreshLayout refreshLayout;
     private List<AppRelease> products = new ArrayList<>();
     private List<ApiClient.EnvironmentOption> environments = new ArrayList<>();
@@ -104,8 +106,15 @@ public class MainActivity extends Activity {
     private void showMainPage() {
         LinearLayout root = verticalLayout();
         root.setBackgroundColor(COLOR_BACKGROUND);
+        FrameLayout contentFrame = new FrameLayout(this);
         contentLayout = verticalLayout();
-        root.addView(contentLayout, new LinearLayout.LayoutParams(-1, 0, 1));
+        contentFrame.addView(contentLayout, new FrameLayout.LayoutParams(-1, -1));
+        floatingBackButton = createBackButton();
+        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(46), dp(46));
+        backParams.gravity = Gravity.TOP | Gravity.START;
+        backParams.setMargins(dp(12), dp(12), 0, 0);
+        contentFrame.addView(floatingBackButton, backParams);
+        root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         renderPage();
     }
@@ -127,11 +136,15 @@ public class MainActivity extends Activity {
         if (contentLayout == null) {
             return;
         }
+        if (floatingBackButton != null) {
+            floatingBackButton.setVisibility(selectedAppCode == null ? View.GONE : View.VISIBLE);
+        }
         contentLayout.removeAllViews();
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        page.setPadding(dp(14), dp(16), dp(14), dp(28));
+        int topPadding = selectedAppCode == null ? dp(16) : dp(68);
+        page.setPadding(dp(14), topPadding, dp(14), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
         }
@@ -142,19 +155,18 @@ public class MainActivity extends Activity {
         } else if (selectedAppCode == null) {
             page.addView(createAppsListPanel());
         } else if (!environmentsLoaded) {
-            page.addView(createBackButton());
             page.addView(createLoadingCard("正在加载环境列表…"));
         } else if (environments.isEmpty() || selectedEnvCode == null) {
-            page.addView(createBackButton());
             page.addView(createEmptyCard("暂无可用环境", "后端暂未返回可选环境。"));
         } else {
-            page.addView(createSelectionSummary());
             if (latestRelease != null) {
                 page.addView(createReleaseCard(latestRelease));
                 page.addView(createHistoryCard(latestRelease));
             } else if (versionsLoading) {
+                page.addView(createEnvironmentPickerCard());
                 page.addView(createLoadingCard("正在获取版本信息…"));
             } else {
+                page.addView(createEnvironmentPickerCard());
                 page.addView(createEmptyCard("暂无可用版本", "该产品在当前环境下还没有发布 APK。"));
             }
         }
@@ -368,8 +380,10 @@ public class MainActivity extends Activity {
         backButton.setTextColor(COLOR_TEXT);
         backButton.setTextSize(38);
         backButton.setGravity(Gravity.CENTER);
-        backButton.setPadding(0, 0, 0, dp(6));
+        backButton.setPadding(0, 0, 0, dp(5));
         backButton.setContentDescription("返回应用列表");
+        backButton.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(23)));
+        backButton.setElevation(dp(6));
         backButton.setOnClickListener(view -> {
             selectedAppCode = null;
             selectedEnvCode = null;
@@ -379,9 +393,6 @@ public class MainActivity extends Activity {
             historyList = new ArrayList<>();
             renderPage();
         });
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(48));
-        params.setMargins(-dp(8), 0, 0, dp(2));
-        backButton.setLayoutParams(params);
         return backButton;
     }
 
@@ -539,6 +550,7 @@ public class MainActivity extends Activity {
         LinearLayout card = cardLayout();
         UpdateStatus status = calculateStatus(release);
         card.addView(createAppIdentity(release, status));
+        card.addView(createEnvironmentSpinner());
         card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 17));
         card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
         Button actionButton = primaryButton(getActionText(status));
@@ -549,6 +561,12 @@ public class MainActivity extends Activity {
             }
         });
         card.addView(actionButton, prominentButtonParams());
+        return card;
+    }
+
+    private View createEnvironmentPickerCard() {
+        LinearLayout card = cardLayout();
+        card.addView(createEnvironmentSpinner());
         return card;
     }
 
