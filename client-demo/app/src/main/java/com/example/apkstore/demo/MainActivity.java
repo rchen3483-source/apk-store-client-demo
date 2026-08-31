@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         scrollView.addView(page);
         refreshLayout = new SwipeRefreshLayout(this);
         refreshLayout.setColorSchemeColors(COLOR_PRIMARY);
-        refreshLayout.setOnRefreshListener(view -> refreshAll());
+        refreshLayout.setOnRefreshListener(() -> refreshAll());
         refreshLayout.addView(scrollView, new SwipeRefreshLayout.LayoutParams(-1, -1));
         contentLayout.addView(refreshLayout, new LinearLayout.LayoutParams(-1, 0, 1));
     }
