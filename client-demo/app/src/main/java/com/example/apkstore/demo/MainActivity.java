@@ -331,8 +331,12 @@ public class MainActivity extends Activity {
         details.setPadding(dp(14), 0, dp(8), 0);
         details.addView(titleText(displayText(product.getAppName(), "未命名应用"), 19));
         details.addView(smallText(displayText(product.getAppCode(), "-")));
-        details.addView(smallText("查看版本与更新  ›"));
+        details.addView(smallText("查看版本与更新"));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView chevron = titleText("›", 26);
+        chevron.setTextColor(COLOR_MUTED);
+        chevron.setGravity(Gravity.CENTER);
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(58)));
         card.addView(row);
         return card;
     }
@@ -1115,11 +1119,11 @@ public class MainActivity extends Activity {
 
     private LinearLayout cardLayout() {
         LinearLayout card = verticalLayout();
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(16)));
-        card.setElevation(dp(1));
+        card.setPadding(dp(18), dp(18), dp(18), dp(18));
+        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(18)));
+        card.setElevation(dp(2));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(12));
+        params.setMargins(0, 0, 0, dp(14));
         card.setLayoutParams(params);
         return card;
     }
