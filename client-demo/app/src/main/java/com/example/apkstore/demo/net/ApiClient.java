@@ -271,7 +271,7 @@ public final class ApiClient {
 
         @Override
         public String toString() {
-            return name + "（" + code + "）";
+            return name;
         }
     }
 
@@ -299,3 +299,4 @@ public final class ApiClient {
         }
     }
 }
+

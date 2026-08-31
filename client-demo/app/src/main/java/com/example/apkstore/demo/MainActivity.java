@@ -634,8 +634,6 @@ public class MainActivity extends Activity {
         LinearLayout details = verticalLayout();
         details.setPadding(dp(14), 0, 0, 0);
         details.addView(titleText(displayText(displayName, "未命名应用"), 22));
-        details.addView(smallText(displayText(environmentName(selectedEnvCode), selectedEnvCode)
-                + "  ·  " + displayText(selectedAppCode, "-")));
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.TOP);
@@ -736,7 +734,6 @@ public class MainActivity extends Activity {
         LinearLayout details = verticalLayout();
         details.setPadding(dp(14), 0, 0, 0);
         details.addView(titleText(displayText(release.getAppName(), "未命名应用"), 22));
-        details.addView(appSubtitleText(release));
         details.addView(statusBadge(status));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         return row;
@@ -771,12 +768,6 @@ public class MainActivity extends Activity {
 
     private LinearLayout.LayoutParams metricParams() {
         return new LinearLayout.LayoutParams(0, -2, 1);
-    }
-
-    private TextView appSubtitleText(AppRelease release) {
-        String value = displayText(environmentName(release.getEnvCode()), release.getEnvCode())
-                + "  ·  " + displayText(release.getAppCode(), "-");
-        return smallText(value);
     }
 
     private boolean isLatestRelease(AppRelease latest, AppRelease candidate) {
