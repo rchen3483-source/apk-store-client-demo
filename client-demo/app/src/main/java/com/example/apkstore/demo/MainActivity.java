@@ -104,7 +104,6 @@ public class MainActivity extends Activity {
     private void showMainPage() {
         LinearLayout root = verticalLayout();
         root.setBackgroundColor(COLOR_BACKGROUND);
-        root.addView(createHeader());
         contentLayout = verticalLayout();
         root.addView(contentLayout, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
@@ -119,7 +118,6 @@ public class MainActivity extends Activity {
         header.setElevation(dp(2));
         LinearLayout titleGroup = verticalLayout();
         titleGroup.addView(titleText("APK 商店", 22));
-        titleGroup.addView(smallText("企业内部应用分发"));
         header.addView(titleGroup, new LinearLayout.LayoutParams(0, -2, 1));
         header.addView(environmentBadge("研发环境"));
         return header;
@@ -144,16 +142,15 @@ public class MainActivity extends Activity {
         } else if (selectedAppCode == null) {
             page.addView(createAppsListPanel());
         } else if (!environmentsLoaded) {
-            page.addView(createAppDetailHeader());
+            page.addView(createBackButton());
             page.addView(createLoadingCard("正在加载环境列表…"));
         } else if (environments.isEmpty() || selectedEnvCode == null) {
-            page.addView(createAppDetailHeader());
+            page.addView(createBackButton());
             page.addView(createEmptyCard("暂无可用环境", "后端暂未返回可选环境。"));
         } else {
             page.addView(createSelectionSummary());
             if (latestRelease != null) {
                 page.addView(createReleaseCard(latestRelease));
-                page.addView(createReleaseNotesCard(latestRelease));
                 page.addView(createHistoryCard(latestRelease));
             } else if (versionsLoading) {
                 page.addView(createLoadingCard("正在获取版本信息…"));
@@ -349,7 +346,8 @@ public class MainActivity extends Activity {
     }
 
     private View createAppDetailHeader() {
-        LinearLayout card = cardLayout();
+        LinearLayout card = verticalLayout();
+        card.addView(createBackButton());
         LinearLayout row = horizontalLayout();
         row.setGravity(Gravity.CENTER_VERTICAL);
         AppRelease product = findProduct(selectedAppCode);
@@ -361,7 +359,17 @@ public class MainActivity extends Activity {
         details.addView(smallText("appCode：" + displayText(selectedAppCode, "-")));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         card.addView(row);
-        Button backButton = secondaryButton("返回应用列表");
+        return card;
+    }
+
+    private View createBackButton() {
+        TextView backButton = new TextView(this);
+        backButton.setText("‹");
+        backButton.setTextColor(COLOR_TEXT);
+        backButton.setTextSize(38);
+        backButton.setGravity(Gravity.CENTER);
+        backButton.setPadding(0, 0, 0, dp(6));
+        backButton.setContentDescription("返回应用列表");
         backButton.setOnClickListener(view -> {
             selectedAppCode = null;
             selectedEnvCode = null;
@@ -371,8 +379,10 @@ public class MainActivity extends Activity {
             historyList = new ArrayList<>();
             renderPage();
         });
-        card.addView(backButton, fullWidthParams());
-        return card;
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(48));
+        params.setMargins(-dp(8), 0, 0, dp(2));
+        backButton.setLayoutParams(params);
+        return backButton;
     }
 
     private AppRelease findProduct(String appCode) {
@@ -426,7 +436,7 @@ public class MainActivity extends Activity {
 
     private View createSelectionSummary() {
         LinearLayout panel = cardLayout();
-        panel.addView(createAppDetailHeader());
+        panel.addView(createBackButton());
         panel.addView(createContextHeader());
         panel.addView(createEnvironmentSpinner());
         return panel;
@@ -482,12 +492,37 @@ public class MainActivity extends Activity {
         for (int i = 0; i < environments.size(); i++) {
             environmentValues[i] = environments.get(i).toString();
         }
-        return createSpinner("环境", environmentValues, environmentDisplayValue(), new SpinnerAction() {
+        LinearLayout row = horizontalLayout();
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView label = titleText("环境", 15);
+        row.addView(label, new LinearLayout.LayoutParams(0, dp(44), 1));
+        Spinner spinner = new Spinner(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, environmentValues);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setSelection(indexOf(environmentValues, environmentDisplayValue()));
+        spinner.setPadding(dp(8), 0, dp(8), 0);
+        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
-            public void onSelected(String value) {
-                selectEnvironment(value);
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < parent.getCount()) {
+                    selectEnvironment(String.valueOf(parent.getItemAtPosition(position)));
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // No action needed.
             }
         });
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(190), dp(44));
+        row.addView(spinner, spinnerParams);
+        LinearLayout.LayoutParams rowParams = fullWidthParams();
+        rowParams.setMargins(0, dp(8), 0, dp(4));
+        row.setLayoutParams(rowParams);
+        return row;
     }
 
     private void selectEnvironment(String value) {
@@ -504,9 +539,8 @@ public class MainActivity extends Activity {
         LinearLayout card = cardLayout();
         UpdateStatus status = calculateStatus(release);
         card.addView(createAppIdentity(release, status));
-        card.addView(createMetadataStrip(release));
-        card.addView(smallText("本机版本  " + localVersion(release.getPackageName())));
-        card.addView(smallText("包名  " + displayText(release.getPackageName(), "-")));
+        card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 17));
+        card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
         Button actionButton = primaryButton(getActionText(status));
         actionButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -518,16 +552,9 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private View createReleaseNotesCard(AppRelease release) {
-        LinearLayout card = cardLayout();
-        card.addView(pageSectionTitle("本次更新", "版本 " + displayText(release.getVersionName(), "-")));
-        card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无更新说明")));
-        return card;
-    }
-
     private View createHistoryCard(final AppRelease latest) {
         LinearLayout card = cardLayout();
-        card.addView(pageSectionTitle("历史版本", "默认展示最近 5 个版本"));
+        card.addView(pageSectionTitle("历史版本", "支持搜索版本号或构建号"));
         card.addView(createHistorySearch());
         addHistoryRows(card, latest);
         return card;
@@ -543,9 +570,10 @@ public class MainActivity extends Activity {
         searchInput.setTextSize(14);
         searchInput.setText(historySearchQuery);
         searchInput.setSingleLine(true);
+        searchInput.setGravity(Gravity.CENTER_VERTICAL);
         searchInput.setPadding(dp(12), 0, dp(12), 0);
         searchInput.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
-        searchRow.addView(searchInput, new LinearLayout.LayoutParams(0, -2, 1));
+        searchRow.addView(searchInput, new LinearLayout.LayoutParams(0, dp(44), 1));
         Button searchButton = compactButton("搜索", false);
         searchButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -593,9 +621,7 @@ public class MainActivity extends Activity {
         row.setPadding(0, dp(10), 0, dp(10));
         LinearLayout details = verticalLayout();
         details.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 15));
-        String description = "构建 " + displayText(release.getBuildNo(), "-")
-                + "  ·  " + formatSize(release.getApkSize());
-        details.addView(smallText(description));
+        details.addView(smallText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         Button button = compactButton("下载", false);
         button.setOnClickListener(new View.OnClickListener() {
