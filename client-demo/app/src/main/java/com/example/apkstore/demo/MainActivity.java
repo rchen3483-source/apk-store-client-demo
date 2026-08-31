@@ -25,6 +25,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.core.content.FileProvider;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.apkstore.demo.model.AppRelease;
 import com.example.apkstore.demo.model.DownloadTask;
@@ -73,6 +74,7 @@ public class MainActivity extends Activity {
     private final Map<Long, File> downloadedFiles = new HashMap<>();
 
     private LinearLayout contentLayout;
+    private SwipeRefreshLayout refreshLayout;
     private List<AppRelease> products = new ArrayList<>();
     private List<ApiClient.EnvironmentOption> environments = new ArrayList<>();
     private List<AppRelease> historyList = new ArrayList<>();
@@ -140,9 +142,13 @@ public class MainActivity extends Activity {
         } else if (products.isEmpty()) {
             page.addView(cardLayoutWithText("后端暂无可用产品"));
         } else if (selectedAppCode == null) {
-            page.addView(createProductSelectionPanel());
-        } else if (!environmentsLoaded || environments.isEmpty() || selectedEnvCode == null) {
-            page.addView(createEnvironmentSelectionPanel());
+            page.addView(createAppsListPanel());
+        } else if (!environmentsLoaded) {
+            page.addView(createAppDetailHeader());
+            page.addView(createLoadingCard("正在加载环境列表…"));
+        } else if (environments.isEmpty() || selectedEnvCode == null) {
+            page.addView(createAppDetailHeader());
+            page.addView(createEmptyCard("暂无可用环境", "后端暂未返回可选环境。"));
         } else {
             page.addView(createSelectionSummary());
             if (latestRelease != null) {
@@ -162,7 +168,23 @@ public class MainActivity extends Activity {
             }
         }
         scrollView.addView(page);
-        contentLayout.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
+        refreshLayout = new SwipeRefreshLayout(this);
+        refreshLayout.setColorSchemeColors(COLOR_PRIMARY);
+        refreshLayout.setOnRefreshListener(view -> refreshAll());
+        refreshLayout.addView(scrollView, new SwipeRefreshLayout.LayoutParams(-1, -1));
+        contentLayout.addView(refreshLayout, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    private void refreshAll() {
+        errorMessage = null;
+        productsLoaded = false;
+        environmentsLoaded = false;
+        environments = new ArrayList<>();
+        latestRelease = null;
+        historyList = new ArrayList<>();
+        versionsLoading = false;
+        renderPage();
+        loadProducts();
     }
 
     private void loadProducts() {
@@ -177,15 +199,15 @@ public class MainActivity extends Activity {
                         public void run() {
                             products = result;
                             productsLoaded = true;
-                            if (selectedAppCode == null && !products.isEmpty()) {
-                                selectedAppCode = products.get(0).getAppCode();
+                            if (selectedAppCode != null && !containsProduct(selectedAppCode)) {
+                                selectedAppCode = null;
                                 selectedEnvCode = null;
-                                environments = new ArrayList<>();
                                 environmentsLoaded = false;
-                                renderPage();
+                            }
+                            renderPage();
+                            stopRefreshing();
+                            if (selectedAppCode != null) {
                                 loadEnvironments();
-                            } else {
-                                renderPage();
                             }
                         }
                     });
@@ -269,40 +291,97 @@ public class MainActivity extends Activity {
                 versionsLoading = false;
                 errorMessage = exception.getMessage() == null ? "网络请求失败" : exception.getMessage();
                 renderPage();
+                stopRefreshing();
             }
         });
     }
 
-    private View createProductSelectionPanel() {
-        LinearLayout panel = cardLayout();
-        panel.addView(titleText("选择产品", 20));
-        panel.addView(smallText("产品列表由后端 appCode 接口返回"));
-        String[] values = new String[products.size()];
-        for (int i = 0; i < products.size(); i++) {
-            values[i] = products.get(i).getAppName() + "（" + products.get(i).getAppCode() + "）";
+    private View createAppsListPanel() {
+        LinearLayout panel = verticalLayout();
+        panel.addView(pageSectionTitle("应用", "已接入的应用，点击查看版本与更新"));
+        for (AppRelease product : products) {
+            panel.addView(createProductCard(product));
         }
-        final boolean[] initialSelection = {true};
-        panel.addView(createSpinner("产品", values, productDisplayValue(), new SpinnerAction() {
-            @Override
-            public void onSelected(String value) {
-                if (initialSelection[0]) {
-                    initialSelection[0] = false;
-                    return;
-                }
-                for (AppRelease product : products) {
-                    String display = product.getAppName() + "（" + product.getAppCode() + "）";
-                    if (display.equals(value) && !product.getAppCode().equals(selectedAppCode)) {
-                        selectedAppCode = product.getAppCode();
-                        selectedEnvCode = null;
-                        environments = new ArrayList<>();
-                        environmentsLoaded = false;
-                        loadEnvironments();
-                        break;
-                    }
-                }
-            }
-        }));
         return panel;
+    }
+
+    private View createProductCard(final AppRelease product) {
+        LinearLayout card = cardLayout();
+        card.setOnClickListener(view -> openProduct(product.getAppCode()));
+        LinearLayout row = horizontalLayout();
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(appIcon(product.getAppName()), new LinearLayout.LayoutParams(dp(58), dp(58)));
+        LinearLayout details = verticalLayout();
+        details.setPadding(dp(14), 0, dp(8), 0);
+        details.addView(titleText(displayText(product.getAppName(), "未命名应用"), 19));
+        details.addView(smallText(displayText(product.getAppCode(), "-")));
+        details.addView(smallText("查看版本与更新  ›"));
+        row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(row);
+        return card;
+    }
+
+    private void openProduct(String appCode) {
+        selectedAppCode = appCode;
+        selectedEnvCode = null;
+        environments = new ArrayList<>();
+        environmentsLoaded = false;
+        latestRelease = null;
+        historyList = new ArrayList<>();
+        errorMessage = null;
+        renderPage();
+        loadEnvironments();
+    }
+
+    private boolean containsProduct(String appCode) {
+        for (AppRelease product : products) {
+            if (appCode.equals(product.getAppCode())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void stopRefreshing() {
+        if (refreshLayout != null) {
+            refreshLayout.setRefreshing(false);
+        }
+    }
+
+    private View createAppDetailHeader() {
+        LinearLayout card = cardLayout();
+        LinearLayout row = horizontalLayout();
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        AppRelease product = findProduct(selectedAppCode);
+        row.addView(appIcon(product == null ? selectedAppCode : product.getAppName()),
+                new LinearLayout.LayoutParams(dp(58), dp(58)));
+        LinearLayout details = verticalLayout();
+        details.setPadding(dp(14), 0, 0, 0);
+        details.addView(titleText(product == null ? selectedAppCode : product.getAppName(), 20));
+        details.addView(smallText("appCode：" + displayText(selectedAppCode, "-")));
+        row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(row);
+        Button backButton = secondaryButton("返回应用列表");
+        backButton.setOnClickListener(view -> {
+            selectedAppCode = null;
+            selectedEnvCode = null;
+            environments = new ArrayList<>();
+            environmentsLoaded = false;
+            latestRelease = null;
+            historyList = new ArrayList<>();
+            renderPage();
+        });
+        card.addView(backButton, fullWidthParams());
+        return card;
+    }
+
+    private AppRelease findProduct(String appCode) {
+        for (AppRelease product : products) {
+            if (appCode != null && appCode.equals(product.getAppCode())) {
+                return product;
+            }
+        }
+        return null;
     }
 
     private View createEnvironmentSelectionPanel() {
@@ -347,8 +426,8 @@ public class MainActivity extends Activity {
 
     private View createSelectionSummary() {
         LinearLayout panel = cardLayout();
+        panel.addView(createAppDetailHeader());
         panel.addView(createContextHeader());
-        panel.addView(createProductSpinner());
         panel.addView(createEnvironmentSpinner());
         return panel;
     }
