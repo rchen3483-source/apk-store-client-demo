@@ -117,9 +117,9 @@ public class MainActivity extends Activity {
         contentLayout = verticalLayout();
         contentFrame.addView(contentLayout, new FrameLayout.LayoutParams(-1, -1));
         floatingBackButton = createBackButton();
-        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(46), dp(46));
+        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(40), dp(40));
         backParams.gravity = Gravity.TOP | Gravity.START;
-        backParams.setMargins(dp(12), dp(12), 0, 0);
+        backParams.setMargins(dp(10), dp(8), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
@@ -150,7 +150,7 @@ public class MainActivity extends Activity {
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        int topPadding = selectedAppCode == null ? dp(16) : dp(68);
+        int topPadding = dp(18);
         page.setPadding(dp(14), topPadding, dp(14), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
@@ -388,13 +388,13 @@ public class MainActivity extends Activity {
     private View createBackButton() {
         TextView backButton = new TextView(this);
         backButton.setText("‹");
-        backButton.setTextColor(COLOR_TEXT);
-        backButton.setTextSize(38);
+        backButton.setTextColor(COLOR_MUTED);
+        backButton.setTextSize(34);
         backButton.setGravity(Gravity.CENTER);
         backButton.setPadding(0, 0, 0, dp(5));
         backButton.setContentDescription("返回应用列表");
-        backButton.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(23)));
-        backButton.setElevation(dp(6));
+        backButton.setBackgroundColor(Color.TRANSPARENT);
+        backButton.setElevation(0);
         backButton.setOnClickListener(view -> {
             selectedAppCode = null;
             selectedEnvCode = null;
@@ -515,10 +515,20 @@ public class MainActivity extends Activity {
             environmentValues[i] = environments.get(i).toString();
         }
         LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        row.setGravity(Gravity.TOP | Gravity.END);
         Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, environmentValues);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, environmentValues) {
+            @Override
+            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setTextSize(12);
+                view.setTextColor(COLOR_TEXT);
+                view.setGravity(Gravity.CENTER_VERTICAL);
+                view.setSingleLine(true);
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setSelection(indexOf(environmentValues, environmentDisplayValue()));
@@ -548,11 +558,8 @@ public class MainActivity extends Activity {
         arrow.setOnClickListener(view -> spinner.performClick());
         FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(28), -1, Gravity.END);
         spinnerContainer.addView(arrow, arrowParams);
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(174), dp(38));
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(160), dp(36));
         row.addView(spinnerContainer, spinnerParams);
-        LinearLayout.LayoutParams rowParams = fullWidthParams();
-        rowParams.setMargins(0, dp(4), 0, dp(2));
-        row.setLayoutParams(rowParams);
         return row;
     }
 
@@ -593,8 +600,11 @@ public class MainActivity extends Activity {
     private View createReleaseCard(final AppRelease release) {
         LinearLayout card = cardLayout();
         UpdateStatus status = calculateStatus(release);
-        card.addView(createAppIdentity(release, status));
-        card.addView(createEnvironmentSpinner());
+        LinearLayout header = horizontalLayout();
+        header.setGravity(Gravity.TOP);
+        header.addView(createAppIdentity(release, status), new LinearLayout.LayoutParams(0, -2, 1));
+        header.addView(createEnvironmentSpinner());
+        card.addView(header);
         card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 17));
         card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
         Button actionButton = primaryButton(getActionText(status));
@@ -627,8 +637,11 @@ public class MainActivity extends Activity {
         details.addView(smallText(displayText(environmentName(selectedEnvCode), selectedEnvCode)
                 + "  ·  " + displayText(selectedAppCode, "-")));
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        card.addView(identity);
-        card.addView(createEnvironmentSpinner());
+        LinearLayout header = horizontalLayout();
+        header.setGravity(Gravity.TOP);
+        header.addView(identity, new LinearLayout.LayoutParams(0, -2, 1));
+        header.addView(createEnvironmentSpinner());
+        card.addView(header);
         card.addView(titleText(title, 17));
         card.addView(bodyText(description));
         return card;
