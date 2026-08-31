@@ -67,6 +67,13 @@ public class MainActivity extends Activity {
     private static final int COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
     private static final int COLOR_DANGER = Color.rgb(220, 38, 38);
     private static final int COLOR_DANGER_SOFT = Color.rgb(254, 235, 235);
+    private static final String[][] DEFAULT_ENVIRONMENTS = {
+            {"dev", "研发环境"},
+            {"test", "测试环境"},
+            {"sit_test", "耳机测试环境"},
+            {"online_test", "线上测试环境"},
+            {"prod", "线上发布环境"}
+    };
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
@@ -242,7 +249,7 @@ public class MainActivity extends Activity {
                     mainHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            environments = result;
+                            environments = completeEnvironments(result);
                             environmentsLoaded = true;
                             if (selectedEnvCode == null && !environments.isEmpty()) {
                                 selectedEnvCode = environments.get(0).getCode();
@@ -504,9 +511,7 @@ public class MainActivity extends Activity {
             environmentValues[i] = environments.get(i).toString();
         }
         LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        TextView label = titleText("环境", 15);
-        row.addView(label, new LinearLayout.LayoutParams(0, dp(44), 1));
+        row.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         Spinner spinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, environmentValues);
@@ -528,12 +533,36 @@ public class MainActivity extends Activity {
                 // No action needed.
             }
         });
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(190), dp(44));
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(174), dp(38));
         row.addView(spinner, spinnerParams);
         LinearLayout.LayoutParams rowParams = fullWidthParams();
-        rowParams.setMargins(0, dp(8), 0, dp(4));
+        rowParams.setMargins(0, dp(4), 0, dp(2));
         row.setLayoutParams(rowParams);
         return row;
+    }
+
+    private List<ApiClient.EnvironmentOption> completeEnvironments(
+            List<ApiClient.EnvironmentOption> backendEnvironments) {
+        List<ApiClient.EnvironmentOption> complete = new ArrayList<>(DEFAULT_ENVIRONMENTS.length);
+        if (backendEnvironments != null) {
+            complete.addAll(backendEnvironments);
+        }
+        for (String[] environment : DEFAULT_ENVIRONMENTS) {
+            if (!containsEnvironmentCode(complete, environment[0])) {
+                complete.add(new ApiClient.EnvironmentOption(environment[0], environment[1]));
+            }
+        }
+        return complete;
+    }
+
+    private boolean containsEnvironmentCode(List<ApiClient.EnvironmentOption> environmentOptions,
+            String environmentCode) {
+        for (ApiClient.EnvironmentOption option : environmentOptions) {
+            if (environmentCode.equals(option.getCode())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void selectEnvironment(String value) {
