@@ -170,11 +170,11 @@ public class MainActivity extends Activity {
                 page.addView(createReleaseCard(latestRelease));
                 page.addView(createHistoryCard(latestRelease));
             } else if (versionsLoading) {
-                page.addView(createEnvironmentPickerCard());
-                page.addView(createLoadingCard("正在获取版本信息…"));
+                page.addView(createUnavailableReleaseCard("正在获取版本信息…",
+                        "请稍候，正在查询当前环境的 APK。"));
             } else {
-                page.addView(createEnvironmentPickerCard());
-                page.addView(createEmptyCard("暂无可用版本", "该产品在当前环境下还没有发布 APK。"));
+                page.addView(createUnavailableReleaseCard("暂无可用版本",
+                        "该产品在当前环境下还没有发布 APK。"));
             }
         }
         if (!taskList.isEmpty()) {
@@ -511,14 +511,14 @@ public class MainActivity extends Activity {
             environmentValues[i] = environments.get(i).toString();
         }
         LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         Spinner spinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, environmentValues);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setSelection(indexOf(environmentValues, environmentDisplayValue()));
-        spinner.setPadding(dp(8), 0, dp(8), 0);
+        spinner.setPadding(dp(8), 0, dp(30), 0);
         spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -533,8 +533,19 @@ public class MainActivity extends Activity {
                 // No action needed.
             }
         });
+        FrameLayout spinnerContainer = new FrameLayout(this);
+        spinnerContainer.addView(spinner, new FrameLayout.LayoutParams(-1, -1));
+        TextView arrow = new TextView(this);
+        arrow.setText("▾");
+        arrow.setTextColor(COLOR_MUTED);
+        arrow.setTextSize(16);
+        arrow.setGravity(Gravity.CENTER);
+        arrow.setContentDescription("展开环境列表");
+        arrow.setOnClickListener(view -> spinner.performClick());
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(28), -1, Gravity.END);
+        spinnerContainer.addView(arrow, arrowParams);
         LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(174), dp(38));
-        row.addView(spinner, spinnerParams);
+        row.addView(spinnerContainer, spinnerParams);
         LinearLayout.LayoutParams rowParams = fullWidthParams();
         rowParams.setMargins(0, dp(4), 0, dp(2));
         row.setLayoutParams(rowParams);
@@ -596,6 +607,26 @@ public class MainActivity extends Activity {
     private View createEnvironmentPickerCard() {
         LinearLayout card = cardLayout();
         card.addView(createEnvironmentSpinner());
+        return card;
+    }
+
+    private View createUnavailableReleaseCard(String title, String description) {
+        LinearLayout card = cardLayout();
+        AppRelease product = findProduct(selectedAppCode);
+        String displayName = product == null ? appName(selectedAppCode) : product.getAppName();
+        LinearLayout identity = horizontalLayout();
+        identity.setGravity(Gravity.CENTER_VERTICAL);
+        identity.addView(appIcon(displayName), new LinearLayout.LayoutParams(dp(72), dp(72)));
+        LinearLayout details = verticalLayout();
+        details.setPadding(dp(14), 0, 0, 0);
+        details.addView(titleText(displayText(displayName, "未命名应用"), 22));
+        details.addView(smallText(displayText(environmentName(selectedEnvCode), selectedEnvCode)
+                + "  ·  " + displayText(selectedAppCode, "-")));
+        identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(identity);
+        card.addView(createEnvironmentSpinner());
+        card.addView(titleText(title, 17));
+        card.addView(bodyText(description));
         return card;
     }
 
