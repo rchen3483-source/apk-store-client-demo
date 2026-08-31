@@ -51,16 +51,16 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    private static final int COLOR_PRIMARY = Color.rgb(0, 102, 255);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(0, 76, 204);
-    private static final int COLOR_PRIMARY_SOFT = Color.rgb(232, 241, 255);
-    private static final int COLOR_BACKGROUND = Color.rgb(246, 247, 250);
+    private static final int COLOR_PRIMARY = Color.rgb(78, 96, 170);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(52, 67, 126);
+    private static final int COLOR_PRIMARY_SOFT = Color.rgb(234, 237, 249);
+    private static final int COLOR_BACKGROUND = Color.rgb(245, 246, 250);
     private static final int COLOR_PANEL = Color.WHITE;
-    private static final int COLOR_SURFACE = Color.rgb(247, 249, 252);
-    private static final int COLOR_BORDER = Color.rgb(228, 231, 237);
-    private static final int COLOR_DIVIDER = Color.rgb(238, 240, 244);
-    private static final int COLOR_TEXT = Color.rgb(24, 28, 36);
-    private static final int COLOR_MUTED = Color.rgb(111, 118, 132);
+    private static final int COLOR_SURFACE = Color.rgb(248, 249, 252);
+    private static final int COLOR_BORDER = Color.rgb(221, 225, 235);
+    private static final int COLOR_DIVIDER = Color.rgb(235, 237, 243);
+    private static final int COLOR_TEXT = Color.rgb(31, 37, 56);
+    private static final int COLOR_MUTED = Color.rgb(100, 108, 128);
     private static final int COLOR_SUCCESS = Color.rgb(22, 163, 74);
     private static final int COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 237);
     private static final int COLOR_WARNING = Color.rgb(217, 119, 6);
@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
         floatingBackButton = createBackButton();
         FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(40), dp(40));
         backParams.gravity = Gravity.TOP | Gravity.START;
-        backParams.setMargins(dp(8), dp(2), 0, 0);
+        backParams.setMargins(dp(8), dp(32), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
@@ -150,7 +150,7 @@ public class MainActivity extends Activity {
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        int topPadding = dp(18);
+        int topPadding = selectedAppCode == null ? dp(18) : dp(48);
         page.setPadding(dp(14), topPadding, dp(14), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
@@ -1155,7 +1155,7 @@ public class MainActivity extends Activity {
         icon.setTextSize(30);
         icon.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(87, 151, 255), dp(17)));
+        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(119, 139, 215), dp(17)));
         icon.setElevation(dp(3));
         return icon;
     }
