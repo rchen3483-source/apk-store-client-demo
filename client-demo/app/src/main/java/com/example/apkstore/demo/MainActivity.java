@@ -875,6 +875,7 @@ public class MainActivity extends Activity {
         footer.addView(taskHint);
         card.addView(footer);
         if (TaskStatus.DOWNLOADED.equals(task.getStatus())) {
+            LinearLayout actions = horizontalLayout();
             Button installButton = primaryButton("安装应用");
             installButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -882,9 +883,53 @@ public class MainActivity extends Activity {
                     installTask(task);
                 }
             });
-            card.addView(installButton, prominentButtonParams());
+            actions.addView(installButton, actionButtonParams(1.0f, 0, dp(6)));
+            Button deleteButton = secondaryButton("删除记录");
+            deleteButton.setContentDescription("删除下载与安装记录");
+            deleteButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    confirmDeleteTask(task);
+                }
+            });
+            actions.addView(deleteButton, actionButtonParams(0.0f, dp(104), 0));
+            card.addView(actions, taskActionRowParams());
+        } else if (isTaskDeletable(task.getStatus())) {
+            Button deleteButton = secondaryButton("删除记录");
+            deleteButton.setContentDescription("删除下载与安装记录");
+            deleteButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    confirmDeleteTask(task);
+                }
+            });
+            card.addView(deleteButton, prominentButtonParams());
         }
         return card;
+    }
+
+    private boolean isTaskDeletable(TaskStatus status) {
+        return TaskStatus.DOWNLOADED.equals(status)
+                || TaskStatus.DONE.equals(status)
+                || TaskStatus.FAILED.equals(status);
+    }
+
+    private void confirmDeleteTask(final DownloadTask task) {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("删除记录")
+                .setMessage("删除该下载与安装记录？已下载的 APK 缓存也会一并移除。")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("删除", (dialog, which) -> deleteTask(task))
+                .show();
+    }
+
+    private void deleteTask(DownloadTask task) {
+        File downloadedFile = downloadedFiles.remove(task.getTaskId());
+        if (downloadedFile != null && downloadedFile.exists()) {
+            downloadedFile.delete();
+        }
+        taskList.remove(task);
+        renderPage();
     }
 
     private void startDownload(final AppRelease release) {
@@ -1467,6 +1512,18 @@ public class MainActivity extends Activity {
         return params;
     }
 
+    private LinearLayout.LayoutParams taskActionRowParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(50));
+        params.setMargins(0, dp(15), 0, 0);
+        return params;
+    }
+
+    private LinearLayout.LayoutParams actionButtonParams(float weight, int width, int marginLeft) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, dp(50), weight);
+        params.setMargins(marginLeft, 0, 0, 0);
+        return params;
+    }
+
     private String formatSize(Long bytes) {
         if (bytes == null || bytes <= 0) {
             return "-";
@@ -1486,4 +1543,3 @@ public class MainActivity extends Activity {
         void onSelected(String value);
     }
 }
-
