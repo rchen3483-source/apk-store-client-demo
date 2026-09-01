@@ -5,7 +5,9 @@ import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -14,6 +16,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -40,6 +43,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -51,22 +56,23 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    private static final int COLOR_PRIMARY = Color.rgb(78, 96, 170);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(52, 67, 126);
-    private static final int COLOR_PRIMARY_SOFT = Color.rgb(234, 237, 249);
-    private static final int COLOR_BACKGROUND = Color.rgb(245, 246, 250);
+    /** TestApp 风格的靛紫色操作色，避免高饱和纯蓝造成页面刺眼。 */
+    private static final int COLOR_PRIMARY = Color.rgb(99, 91, 255);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(67, 56, 202);
+    private static final int COLOR_PRIMARY_SOFT = Color.rgb(239, 238, 255);
+    private static final int COLOR_BACKGROUND = Color.rgb(247, 248, 252);
     private static final int COLOR_PANEL = Color.WHITE;
-    private static final int COLOR_SURFACE = Color.rgb(248, 249, 252);
-    private static final int COLOR_BORDER = Color.rgb(221, 225, 235);
-    private static final int COLOR_DIVIDER = Color.rgb(235, 237, 243);
-    private static final int COLOR_TEXT = Color.rgb(31, 37, 56);
-    private static final int COLOR_MUTED = Color.rgb(100, 108, 128);
-    private static final int COLOR_SUCCESS = Color.rgb(22, 163, 74);
-    private static final int COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 237);
-    private static final int COLOR_WARNING = Color.rgb(217, 119, 6);
-    private static final int COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
-    private static final int COLOR_DANGER = Color.rgb(220, 38, 38);
-    private static final int COLOR_DANGER_SOFT = Color.rgb(254, 235, 235);
+    private static final int COLOR_SURFACE = Color.rgb(251, 251, 254);
+    private static final int COLOR_BORDER = Color.rgb(231, 232, 240);
+    private static final int COLOR_DIVIDER = Color.rgb(238, 240, 246);
+    private static final int COLOR_TEXT = Color.rgb(24, 33, 63);
+    private static final int COLOR_MUTED = Color.rgb(104, 114, 138);
+    private static final int COLOR_SUCCESS = Color.rgb(18, 183, 106);
+    private static final int COLOR_SUCCESS_SOFT = Color.rgb(236, 253, 243);
+    private static final int COLOR_WARNING = Color.rgb(247, 144, 9);
+    private static final int COLOR_WARNING_SOFT = Color.rgb(255, 250, 235);
+    private static final int COLOR_DANGER = Color.rgb(240, 68, 56);
+    private static final int COLOR_DANGER_SOFT = Color.rgb(254, 243, 242);
     private static final String[][] DEFAULT_ENVIRONMENTS = {
             {"dev", "研发环境"},
             {"test", "测试环境"},
@@ -80,6 +86,8 @@ public class MainActivity extends Activity {
     private final ApiClient apiClient = new ApiClient();
     private final List<DownloadTask> taskList = new ArrayList<>(8);
     private final Map<Long, File> downloadedFiles = new HashMap<>();
+    private final Map<String, Bitmap> iconCache = new ConcurrentHashMap<>();
+    private final Set<String> iconLoading = ConcurrentHashMap.newKeySet();
 
     private LinearLayout contentLayout;
     private View floatingBackButton;
@@ -117,9 +125,9 @@ public class MainActivity extends Activity {
         contentLayout = verticalLayout();
         contentFrame.addView(contentLayout, new FrameLayout.LayoutParams(-1, -1));
         floatingBackButton = createBackButton();
-        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(40), dp(40));
+        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(42), dp(42));
         backParams.gravity = Gravity.TOP | Gravity.START;
-        backParams.setMargins(dp(8), dp(32), 0, 0);
+        backParams.setMargins(dp(14), dp(24), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
@@ -150,7 +158,8 @@ public class MainActivity extends Activity {
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        int topPadding = selectedAppCode == null ? dp(18) : dp(48);
+        // 详情页为悬浮返回按钮预留呼吸空间，避免内容贴住系统状态栏。
+        int topPadding = selectedAppCode == null ? dp(22) : dp(64);
         page.setPadding(dp(14), topPadding, dp(14), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
@@ -314,7 +323,7 @@ public class MainActivity extends Activity {
 
     private View createAppsListPanel() {
         LinearLayout panel = verticalLayout();
-        panel.addView(pageSectionTitle("应用", "已接入的应用，点击查看版本与更新"));
+        panel.addView(pageSectionTitle("应用", "已接入的应用 · 点击查看版本与更新"));
         for (AppRelease product : products) {
             panel.addView(createProductCard(product));
         }
@@ -326,7 +335,8 @@ public class MainActivity extends Activity {
         card.setOnClickListener(view -> openProduct(product.getAppCode()));
         LinearLayout row = horizontalLayout();
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(appIcon(product.getAppName()), new LinearLayout.LayoutParams(dp(58), dp(58)));
+        row.addView(appIcon(product.getAppName(), product.getIconUrl()),
+                new LinearLayout.LayoutParams(dp(58), dp(58)));
         LinearLayout details = verticalLayout();
         details.setPadding(dp(14), 0, dp(8), 0);
         details.addView(titleText(displayText(product.getAppName(), "未命名应用"), 19));
@@ -374,7 +384,8 @@ public class MainActivity extends Activity {
         LinearLayout row = horizontalLayout();
         row.setGravity(Gravity.CENTER_VERTICAL);
         AppRelease product = findProduct(selectedAppCode);
-        row.addView(appIcon(product == null ? selectedAppCode : product.getAppName()),
+        row.addView(appIcon(product == null ? selectedAppCode : product.getAppName(),
+                        product == null ? null : product.getIconUrl()),
                 new LinearLayout.LayoutParams(dp(58), dp(58)));
         LinearLayout details = verticalLayout();
         details.setPadding(dp(14), 0, 0, 0);
@@ -388,8 +399,8 @@ public class MainActivity extends Activity {
     private View createBackButton() {
         TextView backButton = new TextView(this);
         backButton.setText("‹");
-        backButton.setTextColor(COLOR_MUTED);
-        backButton.setTextSize(34);
+        backButton.setTextColor(COLOR_TEXT);
+        backButton.setTextSize(30);
         backButton.setGravity(Gravity.CENTER);
         backButton.setPadding(0, 0, 0, dp(5));
         backButton.setContentDescription("返回应用列表");
@@ -533,8 +544,8 @@ public class MainActivity extends Activity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setSelection(indexOf(environmentValues, environmentDisplayValue()));
-        spinner.setPadding(dp(8), 0, dp(30), 0);
-        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
+        spinner.setPadding(dp(12), 0, dp(32), 0);
+        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(12)));
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -551,15 +562,16 @@ public class MainActivity extends Activity {
         FrameLayout spinnerContainer = new FrameLayout(this);
         spinnerContainer.addView(spinner, new FrameLayout.LayoutParams(-1, -1));
         TextView arrow = new TextView(this);
+        // 使用设备字体普遍支持的实心下箭头，明确提示这是可展开的选择器。
         arrow.setText("▾");
-        arrow.setTextColor(COLOR_MUTED);
-        arrow.setTextSize(16);
+        arrow.setTextColor(COLOR_PRIMARY_DARK);
+        arrow.setTextSize(17);
         arrow.setGravity(Gravity.CENTER);
         arrow.setContentDescription("展开环境列表");
         arrow.setOnClickListener(view -> spinner.performClick());
         FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(28), -1, Gravity.END);
         spinnerContainer.addView(arrow, arrowParams);
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(132), dp(36));
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(140), dp(38));
         row.addView(spinnerContainer, spinnerParams);
         return row;
     }
@@ -606,7 +618,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(createAppIdentity(release, status), identityParams);
-        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(132), dp(36)));
+        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(140), dp(38)));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
@@ -635,7 +647,8 @@ public class MainActivity extends Activity {
         String displayName = product == null ? appName(selectedAppCode) : product.getAppName();
         LinearLayout identity = horizontalLayout();
         identity.setGravity(Gravity.TOP);
-        identity.addView(appIcon(displayName), new LinearLayout.LayoutParams(dp(64), dp(64)));
+        identity.addView(appIcon(displayName, product == null ? null : product.getIconUrl()),
+                new LinearLayout.LayoutParams(dp(64), dp(64)));
         LinearLayout details = verticalLayout();
         details.setPadding(dp(12), 0, 0, 0);
         TextView appTitle = titleText(displayText(displayName, "未命名应用"), 20);
@@ -648,7 +661,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(identity, identityParams);
-        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(132), dp(36)));
+        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(140), dp(38)));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
@@ -742,7 +755,8 @@ public class MainActivity extends Activity {
     private View createAppIdentity(AppRelease release, UpdateStatus status) {
         LinearLayout row = horizontalLayout();
         row.setGravity(Gravity.TOP);
-        row.addView(appIcon(release.getAppName()), new LinearLayout.LayoutParams(dp(64), dp(64)));
+        row.addView(appIcon(release.getAppName(), release.getIconUrl()),
+                new LinearLayout.LayoutParams(dp(64), dp(64)));
         LinearLayout details = verticalLayout();
         details.setPadding(dp(12), 0, 0, 0);
         TextView appTitle = titleText(displayText(release.getAppName(), "未命名应用"), 20);
@@ -805,6 +819,7 @@ public class MainActivity extends Activity {
         ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         progressBar.setProgress(task.getProgress());
+        progressBar.setProgressBackgroundTintList(ColorStateList.valueOf(COLOR_BORDER));
         progressBar.setProgressTintList(ColorStateList.valueOf(taskProgressColor(task.getStatus())));
         LinearLayout.LayoutParams progressParams = fullWidthParams();
         progressParams.setMargins(0, dp(14), 0, dp(4));
@@ -1054,8 +1069,15 @@ public class MainActivity extends Activity {
 
     private View pageSectionTitle(String title, String description) {
         LinearLayout group = verticalLayout();
-        group.addView(titleText(title, 17));
-        group.addView(smallText(description));
+        TextView titleView = titleText(title, 19);
+        titleView.setLetterSpacing(0.01F);
+        group.addView(titleView);
+        TextView descriptionView = smallText(description);
+        descriptionView.setTextSize(13);
+        group.addView(descriptionView);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(2), 0, dp(12));
+        group.setLayoutParams(params);
         return group;
     }
 
@@ -1089,8 +1111,8 @@ public class MainActivity extends Activity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setSelection(indexOf(values, selectedValue));
-        spinner.setPadding(dp(8), 0, dp(8), 0);
-        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(12)));
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -1105,7 +1127,7 @@ public class MainActivity extends Activity {
             }
         });
         LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(-1, dp(48));
-        spinnerParams.setMargins(0, dp(5), 0, dp(10));
+        spinnerParams.setMargins(0, dp(6), 0, dp(10));
         panel.addView(spinner, spinnerParams);
         return panel;
     }
@@ -1138,16 +1160,20 @@ public class MainActivity extends Activity {
 
     private LinearLayout cardLayout() {
         LinearLayout card = verticalLayout();
-        card.setPadding(dp(18), dp(18), dp(18), dp(18));
-        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(18)));
-        card.setElevation(dp(2));
+        card.setPadding(dp(20), dp(20), dp(20), dp(20));
+        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(22)));
+        card.setElevation(dp(1));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(14));
+        params.setMargins(0, 0, 0, dp(16));
         card.setLayoutParams(params);
         return card;
     }
 
-    private TextView appIcon(String appName) {
+    private View appIcon(String appName, String iconUrl) {
+        FrameLayout container = new FrameLayout(this);
+        container.setBackground(roundedDrawable(COLOR_PRIMARY, COLOR_PRIMARY, dp(17)));
+        container.setElevation(dp(1));
+
         TextView icon = new TextView(this);
         String value = displayText(appName, "A");
         icon.setText(value.substring(0, 1));
@@ -1155,9 +1181,53 @@ public class MainActivity extends Activity {
         icon.setTextSize(30);
         icon.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(119, 139, 215), dp(17)));
-        icon.setElevation(dp(3));
-        return icon;
+        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(118, 93, 240), dp(17)));
+        container.addView(icon, new FrameLayout.LayoutParams(-1, -1));
+
+        if (iconUrl != null && !iconUrl.trim().isEmpty()) {
+            final String normalizedUrl = iconUrl.trim();
+            final android.widget.ImageView imageView = new android.widget.ImageView(this);
+            imageView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            imageView.setTag(normalizedUrl);
+            imageView.setClipToOutline(true);
+            imageView.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(17));
+                }
+            });
+            container.addView(imageView, new FrameLayout.LayoutParams(-1, -1));
+            Bitmap cached = iconCache.get(normalizedUrl);
+            if (cached != null) {
+                imageView.setImageBitmap(cached);
+                icon.setVisibility(View.GONE);
+            } else if (iconLoading.add(normalizedUrl)) {
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            final Bitmap bitmap = ApiClient.loadIcon(normalizedUrl);
+                            iconCache.put(normalizedUrl, bitmap);
+                            mainHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (normalizedUrl.equals(imageView.getTag())) {
+                                        imageView.setImageBitmap(bitmap);
+                                        imageView.setVisibility(View.VISIBLE);
+                                        icon.setVisibility(View.GONE);
+                                    }
+                                }
+                            });
+                        } catch (Exception ignored) {
+                            // 图标加载失败时保留首字母默认图标，不影响版本浏览和下载。
+                        } finally {
+                            iconLoading.remove(normalizedUrl);
+                        }
+                    }
+                });
+            }
+        }
+        return container;
     }
 
     private TextView titleText(String text, int sizeSp) {
@@ -1166,7 +1236,8 @@ public class MainActivity extends Activity {
         view.setTextColor(COLOR_TEXT);
         view.setTextSize(sizeSp);
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        view.setPadding(0, dp(2), 0, dp(3));
+        view.setIncludeFontPadding(false);
+        view.setPadding(0, dp(1), 0, dp(3));
         return view;
     }
 
@@ -1176,13 +1247,14 @@ public class MainActivity extends Activity {
         view.setTextColor(COLOR_TEXT);
         view.setTextSize(14);
         view.setLineSpacing(0, 1.15F);
+        view.setIncludeFontPadding(false);
         view.setPadding(0, dp(2), 0, dp(2));
         return view;
     }
 
     private TextView bodyText(String text) {
         TextView view = normalText(text);
-        view.setTextColor(Color.rgb(63, 70, 84));
+        view.setTextColor(Color.rgb(72, 80, 103));
         view.setTextSize(14);
         view.setLineSpacing(dp(3), 1.15F);
         view.setPadding(0, dp(12), 0, dp(4));
@@ -1193,7 +1265,8 @@ public class MainActivity extends Activity {
         TextView view = new TextView(this);
         view.setText(text);
         view.setTextColor(COLOR_MUTED);
-        view.setTextSize(12);
+        view.setTextSize(13);
+        view.setIncludeFontPadding(false);
         view.setPadding(0, dp(2), 0, dp(2));
         return view;
     }
@@ -1254,7 +1327,8 @@ public class MainActivity extends Activity {
         button.setAllCaps(false);
         button.setMinHeight(0);
         button.setPadding(dp(14), 0, dp(14), 0);
-        button.setBackground(roundedDrawable(COLOR_PRIMARY, COLOR_PRIMARY, dp(12)));
+        button.setBackground(roundedDrawable(COLOR_PRIMARY, COLOR_PRIMARY, dp(14)));
+        button.setElevation(dp(1));
         return button;
     }
 
@@ -1267,7 +1341,7 @@ public class MainActivity extends Activity {
         button.setAllCaps(false);
         button.setMinHeight(0);
         button.setPadding(dp(12), 0, dp(12), 0);
-        button.setBackground(roundedDrawable(COLOR_PRIMARY_SOFT, COLOR_PRIMARY_SOFT, dp(10)));
+        button.setBackground(roundedDrawable(COLOR_PRIMARY_SOFT, COLOR_PRIMARY_SOFT, dp(12)));
         return button;
     }
 

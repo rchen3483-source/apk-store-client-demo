@@ -17,6 +17,7 @@ public class AppRelease implements Serializable {
     private String remoteReleaseId;
     private String appCode;
     private String appName;
+    private String iconUrl;
     private String packageName;
     private String envCode;
     private String channelCode;
@@ -46,6 +47,10 @@ public class AppRelease implements Serializable {
 
     public String getAppName() {
         return appName;
+    }
+
+    public String getIconUrl() {
+        return iconUrl;
     }
 
     public String getPackageName() {
@@ -102,6 +107,10 @@ public class AppRelease implements Serializable {
 
     public void setAppName(String appName) {
         this.appName = appName;
+    }
+
+    public void setIconUrl(String iconUrl) {
+        this.iconUrl = iconUrl;
     }
 
     public void setPackageName(String packageName) {

@@ -1,5 +1,8 @@
 package com.example.apkstore.demo.net;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
 import com.example.apkstore.demo.BuildConfig;
 import com.example.apkstore.demo.model.AppRelease;
 
@@ -35,6 +38,7 @@ public final class ApiClient {
             AppRelease option = new AppRelease();
             option.setAppCode(item.optString("appCode"));
             option.setAppName(item.optString("appName"));
+            option.setIconUrl(item.optString("iconUrl"));
             result.add(option);
         }
         return result;
@@ -218,6 +222,7 @@ public final class ApiClient {
         release.setRemoteReleaseId(item.optString("releaseId"));
         release.setAppCode(item.optString("appCode"));
         release.setAppName(item.optString("appName"));
+        release.setIconUrl(item.optString("iconUrl"));
         release.setPackageName(item.optString("packageName"));
         release.setEnvCode(item.optString("envCode"));
         release.setChannelCode(item.optString("channelCode"));
@@ -229,6 +234,38 @@ public final class ApiClient {
         release.setApkSize(item.optLong("apkSize", 0L));
         release.setReleaseNotes(item.optString("releaseNotes"));
         return release;
+    }
+
+    /** 在后台线程加载产品图标；图标不可用时由调用方保留默认图标。 */
+    public static Bitmap loadIcon(String iconUrl) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(iconUrl).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            connection.setReadTimeout(READ_TIMEOUT_MS);
+            connection.setInstanceFollowRedirects(true);
+            connection.setRequestProperty("Accept", "image/*");
+            int status = connection.getResponseCode();
+            if (status < 200 || status >= 300) {
+                throw new IllegalStateException("图标加载失败，HTTP " + status);
+            }
+            long contentLength = connection.getContentLengthLong();
+            if (contentLength > 2L * 1024L * 1024L) {
+                throw new IllegalStateException("图标文件超过 2MB");
+            }
+            try (InputStream input = new BufferedInputStream(connection.getInputStream())) {
+                Bitmap bitmap = BitmapFactory.decodeStream(input);
+                if (bitmap == null) {
+                    throw new IllegalStateException("图标内容不是有效图片");
+                }
+                return bitmap;
+            }
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
     }
 
     private static String encode(String value) throws Exception {
