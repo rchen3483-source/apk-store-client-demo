@@ -56,23 +56,23 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    /** TestApp 风格的靛紫色操作色，避免高饱和纯蓝造成页面刺眼。 */
-    private static final int COLOR_PRIMARY = Color.rgb(99, 91, 255);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(67, 56, 202);
-    private static final int COLOR_PRIMARY_SOFT = Color.rgb(239, 238, 255);
-    private static final int COLOR_BACKGROUND = Color.rgb(247, 248, 252);
-    private static final int COLOR_PANEL = Color.WHITE;
-    private static final int COLOR_SURFACE = Color.rgb(251, 251, 254);
-    private static final int COLOR_BORDER = Color.rgb(231, 232, 240);
-    private static final int COLOR_DIVIDER = Color.rgb(238, 240, 246);
-    private static final int COLOR_TEXT = Color.rgb(24, 33, 63);
-    private static final int COLOR_MUTED = Color.rgb(104, 114, 138);
-    private static final int COLOR_SUCCESS = Color.rgb(18, 183, 106);
-    private static final int COLOR_SUCCESS_SOFT = Color.rgb(236, 253, 243);
-    private static final int COLOR_WARNING = Color.rgb(247, 144, 9);
-    private static final int COLOR_WARNING_SOFT = Color.rgb(255, 250, 235);
-    private static final int COLOR_DANGER = Color.rgb(240, 68, 56);
-    private static final int COLOR_DANGER_SOFT = Color.rgb(254, 243, 242);
+    /** TestApp 任务面板风格：深色工作区，蓝色主操作，彩色状态标签。 */
+    private static final int COLOR_PRIMARY = Color.rgb(47, 128, 255);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(38, 118, 234);
+    private static final int COLOR_PRIMARY_SOFT = Color.rgb(21, 42, 74);
+    private static final int COLOR_BACKGROUND = Color.rgb(12, 18, 26);
+    private static final int COLOR_PANEL = Color.rgb(21, 28, 36);
+    private static final int COLOR_SURFACE = Color.rgb(17, 24, 32);
+    private static final int COLOR_BORDER = Color.rgb(44, 54, 66);
+    private static final int COLOR_DIVIDER = Color.rgb(42, 52, 64);
+    private static final int COLOR_TEXT = Color.rgb(242, 246, 251);
+    private static final int COLOR_MUTED = Color.rgb(149, 163, 183);
+    private static final int COLOR_SUCCESS = Color.rgb(51, 209, 122);
+    private static final int COLOR_SUCCESS_SOFT = Color.rgb(16, 46, 35);
+    private static final int COLOR_WARNING = Color.rgb(228, 169, 29);
+    private static final int COLOR_WARNING_SOFT = Color.rgb(51, 42, 15);
+    private static final int COLOR_DANGER = Color.rgb(243, 90, 106);
+    private static final int COLOR_DANGER_SOFT = Color.rgb(53, 24, 32);
     private static final String[][] DEFAULT_ENVIRONMENTS = {
             {"dev", "研发环境"},
             {"test", "测试环境"},
@@ -323,11 +323,29 @@ public class MainActivity extends Activity {
 
     private View createAppsListPanel() {
         LinearLayout panel = verticalLayout();
-        panel.addView(pageSectionTitle("应用", "已接入的应用 · 点击查看版本与更新"));
+        panel.addView(createAppsSectionHeader());
         for (AppRelease product : products) {
             panel.addView(createProductCard(product));
         }
         return panel;
+    }
+
+    /** 应用工作区标题，结构对应 TestApp 的“模块标题 + 描述 + 快捷操作”。 */
+    private View createAppsSectionHeader() {
+        LinearLayout header = horizontalLayout();
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout heading = verticalLayout();
+        heading.addView(titleText("应用", 19));
+        heading.addView(smallText("管理内部构建与部署环境"));
+        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+        Button refreshButton = compactButton("刷新", true);
+        refreshButton.setContentDescription("刷新应用列表");
+        refreshButton.setOnClickListener(view -> loadProducts());
+        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(68), dp(38)));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(2), 0, dp(14));
+        header.setLayoutParams(params);
+        return header;
     }
 
     private View createProductCard(final AppRelease product) {
@@ -336,18 +354,30 @@ public class MainActivity extends Activity {
         LinearLayout row = horizontalLayout();
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.addView(appIcon(product.getAppName(), product.getIconUrl()),
-                new LinearLayout.LayoutParams(dp(58), dp(58)));
+                new LinearLayout.LayoutParams(dp(52), dp(52)));
         LinearLayout details = verticalLayout();
-        details.setPadding(dp(14), 0, dp(8), 0);
-        details.addView(titleText(displayText(product.getAppName(), "未命名应用"), 19));
+        details.setPadding(dp(12), 0, dp(8), 0);
+        details.addView(titleText(displayText(product.getAppName(), "未命名应用"), 17));
         details.addView(smallText(displayText(product.getAppCode(), "-")));
-        details.addView(smallText("查看版本与更新"));
+        details.addView(pill("可查看版本", COLOR_PRIMARY, COLOR_PRIMARY_SOFT, COLOR_PRIMARY));
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView chevron = titleText("›", 26);
+        TextView chevron = titleText("›", 24);
         chevron.setTextColor(COLOR_MUTED);
         chevron.setGravity(Gravity.CENTER);
-        row.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(58)));
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(52)));
         card.addView(row);
+        card.addView(divider());
+        LinearLayout footer = horizontalLayout();
+        footer.setGravity(Gravity.CENTER_VERTICAL);
+        TextView hint = smallText("查看版本与更新");
+        footer.addView(hint, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView action = smallText("打开应用 ›");
+        action.setTextColor(COLOR_PRIMARY);
+        action.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        footer.addView(action);
+        LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(-1, -2);
+        footerParams.setMargins(0, dp(10), 0, 0);
+        card.addView(footer, footerParams);
         return card;
     }
 
@@ -613,6 +643,7 @@ public class MainActivity extends Activity {
     private View createReleaseCard(final AppRelease release) {
         LinearLayout card = cardLayout();
         UpdateStatus status = calculateStatus(release);
+        card.addView(overlineText("最新构建"));
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.TOP);
         LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
@@ -622,8 +653,12 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
-        card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 17));
+        card.addView(titleText("版本 " + displayText(release.getVersionName(), "-"), 18));
         card.addView(bodyText(displayText(release.getReleaseNotes(), "暂无版本提交信息")));
+        View divider = divider();
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(-1, dp(1));
+        dividerParams.setMargins(0, dp(10), 0, 0);
+        card.addView(divider, dividerParams);
         Button actionButton = primaryButton(getActionText(status));
         actionButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -643,6 +678,7 @@ public class MainActivity extends Activity {
 
     private View createUnavailableReleaseCard(String title, String description) {
         LinearLayout card = cardLayout();
+        card.addView(overlineText("当前环境"));
         AppRelease product = findProduct(selectedAppCode);
         String displayName = product == null ? appName(selectedAppCode) : product.getAppName();
         LinearLayout identity = horizontalLayout();
@@ -655,6 +691,7 @@ public class MainActivity extends Activity {
         appTitle.setSingleLine(true);
         appTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         details.addView(appTitle);
+        details.addView(pill("暂无版本", COLOR_MUTED, COLOR_SURFACE, COLOR_BORDER));
         identity.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.TOP);
@@ -772,7 +809,7 @@ public class MainActivity extends Activity {
         LinearLayout strip = horizontalLayout();
         strip.setGravity(Gravity.CENTER);
         strip.setPadding(dp(6), dp(12), dp(6), dp(12));
-        strip.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_SURFACE, dp(12)));
+        strip.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(8)));
         strip.addView(metric("版本", displayText(release.getVersionName(), "-")), metricParams());
         strip.addView(metric("构建", displayText(release.getBuildNo(), "-")), metricParams());
         strip.addView(metric("大小", formatSize(release.getApkSize())), metricParams());
@@ -807,26 +844,36 @@ public class MainActivity extends Activity {
     private View createTaskCard(final DownloadTask task) {
         LinearLayout card = cardLayout();
         AppRelease release = task.getRelease();
+        LinearLayout statusRow = horizontalLayout();
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.addView(overlineText("DOWNLOAD TASK"), new LinearLayout.LayoutParams(0, -2, 1));
+        statusRow.addView(taskStatusBadge(task.getStatus()));
+        card.addView(statusRow);
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout details = verticalLayout();
         details.addView(titleText(displayText(release.getAppName(), "应用下载"), 17));
-        details.addView(smallText("版本 " + displayText(release.getVersionName(), "-")
-                + "  ·  " + displayText(task.getMessage(), "等待开始")));
+        details.addView(smallText("版本 " + displayText(release.getVersionName(), "-")));
         header.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(taskStatusBadge(task.getStatus()));
         card.addView(header);
+        card.addView(bodyText(displayText(task.getMessage(), "等待开始")));
         ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         progressBar.setProgress(task.getProgress());
         progressBar.setProgressBackgroundTintList(ColorStateList.valueOf(COLOR_BORDER));
         progressBar.setProgressTintList(ColorStateList.valueOf(taskProgressColor(task.getStatus())));
         LinearLayout.LayoutParams progressParams = fullWidthParams();
-        progressParams.setMargins(0, dp(14), 0, dp(4));
+        progressParams.setMargins(0, dp(6), 0, dp(4));
         card.addView(progressBar, progressParams);
+        LinearLayout footer = horizontalLayout();
+        footer.setGravity(Gravity.CENTER_VERTICAL);
         TextView progressText = smallText("已完成 " + task.getProgress() + "%");
-        progressText.setGravity(Gravity.END);
-        card.addView(progressText);
+        footer.addView(progressText, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView taskHint = smallText(TaskStatus.DOWNLOADED.equals(task.getStatus())
+                ? "可安装" : "后台处理中");
+        taskHint.setTextColor(taskProgressColor(task.getStatus()));
+        footer.addView(taskHint);
+        card.addView(footer);
         if (TaskStatus.DOWNLOADED.equals(task.getStatus())) {
             Button installButton = primaryButton("安装应用");
             installButton.setOnClickListener(new View.OnClickListener() {
@@ -1081,6 +1128,17 @@ public class MainActivity extends Activity {
         return group;
     }
 
+    /** 小号分段标签，模拟 TestApp 的模块 overline，帮助用户快速扫描信息层级。 */
+    private TextView overlineText(String text) {
+        TextView view = smallText(text);
+        view.setTextColor(COLOR_PRIMARY);
+        view.setTextSize(11);
+        view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setLetterSpacing(0.04F);
+        view.setPadding(0, 0, 0, dp(8));
+        return view;
+    }
+
     private TextView emptyHint(String message) {
         TextView view = smallText(message);
         view.setGravity(Gravity.CENTER);
@@ -1160,19 +1218,20 @@ public class MainActivity extends Activity {
 
     private LinearLayout cardLayout() {
         LinearLayout card = verticalLayout();
-        card.setPadding(dp(20), dp(20), dp(20), dp(20));
-        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(22)));
-        card.setElevation(dp(1));
+        // TestApp 卡片更接近任务面板：紧凑内边距、细边框，不使用白底大阴影。
+        card.setPadding(dp(16), dp(15), dp(16), dp(15));
+        card.setBackground(roundedDrawable(COLOR_PANEL, COLOR_BORDER, dp(10)));
+        card.setElevation(0);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(16));
+        params.setMargins(0, 0, 0, dp(12));
         card.setLayoutParams(params);
         return card;
     }
 
     private View appIcon(String appName, String iconUrl) {
         FrameLayout container = new FrameLayout(this);
-        container.setBackground(roundedDrawable(COLOR_PRIMARY, COLOR_PRIMARY, dp(17)));
-        container.setElevation(dp(1));
+        container.setBackground(roundedDrawable(COLOR_PRIMARY, COLOR_PRIMARY, dp(16)));
+        container.setElevation(0);
 
         TextView icon = new TextView(this);
         String value = displayText(appName, "A");
@@ -1181,7 +1240,7 @@ public class MainActivity extends Activity {
         icon.setTextSize(30);
         icon.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(118, 93, 240), dp(17)));
+        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(75, 91, 255), dp(16)));
         container.addView(icon, new FrameLayout.LayoutParams(-1, -1));
 
         if (iconUrl != null && !iconUrl.trim().isEmpty()) {
@@ -1193,7 +1252,7 @@ public class MainActivity extends Activity {
             imageView.setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {
-                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(17));
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(16));
                 }
             });
             container.addView(imageView, new FrameLayout.LayoutParams(-1, -1));
@@ -1254,7 +1313,7 @@ public class MainActivity extends Activity {
 
     private TextView bodyText(String text) {
         TextView view = normalText(text);
-        view.setTextColor(Color.rgb(72, 80, 103));
+        view.setTextColor(Color.rgb(176, 188, 205));
         view.setTextSize(14);
         view.setLineSpacing(dp(3), 1.15F);
         view.setPadding(0, dp(12), 0, dp(4));
@@ -1281,13 +1340,8 @@ public class MainActivity extends Activity {
     }
 
     private TextView statusBadge(UpdateStatus status) {
-        TextView view = new TextView(this);
-        view.setText(status.getDisplayName());
-        view.setTextColor(statusColor(status));
-        view.setTextSize(12);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(9), dp(4), dp(9), dp(4));
-        view.setBackground(roundedDrawable(statusBackgroundColor(status), statusBackgroundColor(status), dp(12)));
+        TextView view = pill(status.getDisplayName(), statusColor(status),
+                statusBackgroundColor(status), statusColor(status));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
         params.setMargins(0, dp(5), 0, 0);
         view.setLayoutParams(params);
@@ -1295,26 +1349,25 @@ public class MainActivity extends Activity {
     }
 
     private TextView taskStatusBadge(TaskStatus status) {
-        TextView view = new TextView(this);
-        view.setText(status.getDisplayName());
-        view.setTextColor(taskProgressColor(status));
-        view.setTextSize(12);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(9), dp(4), dp(9), dp(4));
         int background = TaskStatus.FAILED.equals(status) ? COLOR_DANGER_SOFT : COLOR_PRIMARY_SOFT;
-        view.setBackground(roundedDrawable(background, background, dp(12)));
-        return view;
+        return pill(status.getDisplayName(), taskProgressColor(status), background,
+                taskProgressColor(status));
     }
 
     private TextView environmentBadge(String text) {
+        return pill(text, COLOR_PRIMARY, COLOR_PRIMARY_SOFT, COLOR_PRIMARY);
+    }
+
+    private TextView pill(String text, int textColor, int backgroundColor, int strokeColor) {
         TextView view = new TextView(this);
         view.setText(text);
-        view.setTextColor(COLOR_PRIMARY_DARK);
-        view.setTextSize(12);
+        view.setTextColor(textColor);
+        view.setTextSize(11);
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(11), dp(6), dp(11), dp(6));
-        view.setBackground(roundedDrawable(COLOR_PRIMARY_SOFT, COLOR_PRIMARY_SOFT, dp(14)));
+        view.setIncludeFontPadding(false);
+        view.setPadding(dp(8), dp(3), dp(8), dp(3));
+        view.setBackground(roundedDrawable(backgroundColor, strokeColor, dp(8)));
         return view;
     }
 
