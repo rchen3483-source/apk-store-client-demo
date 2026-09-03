@@ -1,8 +1,8 @@
 package com.example.apkstore.demo;
 
 import android.app.Activity;
-import android.content.res.ColorStateList;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -17,15 +17,13 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewOutlineProvider;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.core.content.FileProvider;
@@ -56,23 +54,26 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    /** TestApp 任务面板风格：深色工作区，蓝色主操作，彩色状态标签。 */
-    private static final int COLOR_PRIMARY = Color.rgb(47, 128, 255);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(38, 118, 234);
-    private static final int COLOR_PRIMARY_SOFT = Color.rgb(21, 42, 74);
-    private static final int COLOR_BACKGROUND = Color.rgb(12, 18, 26);
-    private static final int COLOR_PANEL = Color.rgb(21, 28, 36);
-    private static final int COLOR_SURFACE = Color.rgb(17, 24, 32);
-    private static final int COLOR_BORDER = Color.rgb(44, 54, 66);
-    private static final int COLOR_DIVIDER = Color.rgb(42, 52, 64);
-    private static final int COLOR_TEXT = Color.rgb(242, 246, 251);
-    private static final int COLOR_MUTED = Color.rgb(149, 163, 183);
-    private static final int COLOR_SUCCESS = Color.rgb(51, 209, 122);
-    private static final int COLOR_SUCCESS_SOFT = Color.rgb(16, 46, 35);
-    private static final int COLOR_WARNING = Color.rgb(228, 169, 29);
-    private static final int COLOR_WARNING_SOFT = Color.rgb(51, 42, 15);
-    private static final int COLOR_DANGER = Color.rgb(243, 90, 106);
-    private static final int COLOR_DANGER_SOFT = Color.rgb(53, 24, 32);
+    /** 低饱和炭灰蓝主题，降低纯黑与高亮蓝之间的视觉冲突。 */
+    private static final int COLOR_PRIMARY = Color.rgb(98, 105, 198);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(164, 169, 238);
+    private static final int COLOR_PRIMARY_SOFT = Color.rgb(45, 48, 74);
+    private static final int COLOR_BACKGROUND = Color.rgb(23, 25, 35);
+    private static final int COLOR_PANEL = Color.rgb(32, 35, 46);
+    private static final int COLOR_SURFACE = Color.rgb(39, 43, 56);
+    private static final int COLOR_BORDER = Color.rgb(53, 58, 74);
+    private static final int COLOR_DIVIDER = Color.rgb(48, 53, 67);
+    private static final int COLOR_TEXT = Color.rgb(242, 241, 245);
+    private static final int COLOR_MUTED = Color.rgb(166, 167, 179);
+    private static final int COLOR_SUCCESS = Color.rgb(110, 190, 145);
+    private static final int COLOR_SUCCESS_SOFT = Color.rgb(38, 59, 50);
+    private static final int COLOR_WARNING = Color.rgb(214, 168, 92);
+    private static final int COLOR_WARNING_SOFT = Color.rgb(64, 53, 34);
+    private static final int COLOR_DANGER = Color.rgb(220, 122, 130);
+    private static final int COLOR_DANGER_SOFT = Color.rgb(70, 42, 49);
+    private static final int COLOR_MENU_SELECTED = Color.rgb(54, 58, 88);
+    private static final int ENVIRONMENT_SELECTOR_WIDTH_DP = 156;
+    private static final long MENU_ANIMATION_DURATION_MILLIS = 180L;
     private static final String[][] DEFAULT_ENVIRONMENTS = {
             {"dev", "研发环境"},
             {"test", "测试环境"},
@@ -457,153 +458,114 @@ public class MainActivity extends Activity {
         return null;
     }
 
-    private View createEnvironmentSelectionPanel() {
-        LinearLayout panel = cardLayout();
-        panel.addView(titleText("选择环境", 20));
-        panel.addView(smallText("产品：" + selectedAppCode));
-        String[] values = new String[environments.size()];
-        for (int i = 0; i < environments.size(); i++) {
-            values[i] = environments.get(i).toString();
-        }
-        final boolean[] initialSelection = {true};
-        panel.addView(createSpinner("环境", values, environmentDisplayValue(), new SpinnerAction() {
-            @Override
-            public void onSelected(String value) {
-                if (initialSelection[0]) {
-                    initialSelection[0] = false;
-                    return;
-                }
-                for (ApiClient.EnvironmentOption option : environments) {
-                    if (option.toString().equals(value) && !option.getCode().equals(selectedEnvCode)) {
-                        selectedEnvCode = option.getCode();
-                        loadVersions();
-                        break;
-                    }
-                }
-            }
-        }));
-        Button backButton = secondaryButton("返回产品选择");
-        backButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                selectedAppCode = null;
-                selectedEnvCode = null;
-                environments = new ArrayList<>();
-                environmentsLoaded = false;
-                renderPage();
-            }
-        });
-        panel.addView(backButton, fullWidthParams());
-        return panel;
+    private View createEnvironmentDropdown() {
+        LinearLayout container = verticalLayout();
+        container.setClipChildren(false);
+        FrameLayout selector = createEnvironmentSelector();
+        LinearLayout menu = createEnvironmentMenu(selector);
+        selector.setOnClickListener(view -> toggleEnvironmentMenu(menu, selector));
+        container.addView(selector, new LinearLayout.LayoutParams(-1, dp(42)));
+        LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(-1, -2);
+        menuParams.setMargins(0, dp(6), 0, 0);
+        container.addView(menu, menuParams);
+        return container;
     }
 
-    private View createSelectionSummary() {
-        LinearLayout panel = cardLayout();
-        panel.addView(createBackButton());
-        panel.addView(createContextHeader());
-        panel.addView(createEnvironmentSpinner());
-        return panel;
-    }
-
-    private View createContextHeader() {
-        LinearLayout header = horizontalLayout();
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout heading = verticalLayout();
-        heading.addView(titleText("分发范围", 17));
-        heading.addView(smallText("选择需要查看的产品和部署环境"));
-        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-        Button refreshButton = compactButton("刷新", true);
-        refreshButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                loadVersions();
-            }
-        });
-        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(72), dp(38)));
-        return header;
-    }
-
-    private View createProductSpinner() {
-        String[] productValues = new String[products.size()];
-        for (int i = 0; i < products.size(); i++) {
-            productValues[i] = products.get(i).getAppName() + "（" + products.get(i).getAppCode() + "）";
-        }
-        return createSpinner("产品", productValues, productDisplayValue(), new SpinnerAction() {
-            @Override
-            public void onSelected(String value) {
-                selectProduct(value);
-            }
-        });
-    }
-
-    private void selectProduct(String value) {
-        for (AppRelease product : products) {
-            String display = product.getAppName() + "（" + product.getAppCode() + "）";
-            if (display.equals(value) && !product.getAppCode().equals(selectedAppCode)) {
-                selectedAppCode = product.getAppCode();
-                selectedEnvCode = null;
-                environments = new ArrayList<>();
-                environmentsLoaded = false;
-                loadEnvironments();
-                return;
-            }
-        }
-    }
-
-    private View createEnvironmentSpinner() {
-        String[] environmentValues = new String[environments.size()];
-        for (int i = 0; i < environments.size(); i++) {
-            environmentValues[i] = environments.get(i).toString();
-        }
-        LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.TOP | Gravity.END);
-        Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_spinner_item, environmentValues) {
-            @Override
-            public View getView(int position, View convertView, android.view.ViewGroup parent) {
-                TextView view = (TextView) super.getView(position, convertView, parent);
-                view.setTextSize(12);
-                view.setTextColor(COLOR_TEXT);
-                view.setGravity(Gravity.CENTER_VERTICAL);
-                view.setSingleLine(true);
-                view.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                return view;
-            }
-        };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setSelection(indexOf(environmentValues, environmentDisplayValue()));
-        spinner.setPadding(dp(12), 0, dp(32), 0);
-        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(12)));
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position >= 0 && position < parent.getCount()) {
-                    selectEnvironment(String.valueOf(parent.getItemAtPosition(position)));
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // No action needed.
-            }
-        });
-        FrameLayout spinnerContainer = new FrameLayout(this);
-        spinnerContainer.addView(spinner, new FrameLayout.LayoutParams(-1, -1));
-        TextView arrow = new TextView(this);
-        // 使用设备字体普遍支持的实心下箭头，明确提示这是可展开的选择器。
-        arrow.setText("▾");
+    private FrameLayout createEnvironmentSelector() {
+        FrameLayout selector = new FrameLayout(this);
+        selector.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(11)));
+        selector.setContentDescription("展开环境列表");
+        TextView value = normalText(environmentDisplayValue());
+        value.setTextSize(13);
+        value.setSingleLine(true);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        value.setGravity(Gravity.CENTER_VERTICAL);
+        value.setPadding(dp(12), 0, dp(30), 0);
+        selector.addView(value, new FrameLayout.LayoutParams(-1, -1));
+        TextView arrow = normalText("▾");
         arrow.setTextColor(COLOR_PRIMARY_DARK);
-        arrow.setTextSize(17);
+        arrow.setTextSize(15);
         arrow.setGravity(Gravity.CENTER);
         arrow.setContentDescription("展开环境列表");
-        arrow.setOnClickListener(view -> spinner.performClick());
-        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(28), -1, Gravity.END);
-        spinnerContainer.addView(arrow, arrowParams);
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(140), dp(38));
-        row.addView(spinnerContainer, spinnerParams);
-        return row;
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(30), -1, Gravity.END);
+        selector.addView(arrow, arrowParams);
+        selector.setTag(arrow);
+        return selector;
+    }
+
+    private LinearLayout createEnvironmentMenu(final FrameLayout selector) {
+        LinearLayout menu = verticalLayout();
+        menu.setPadding(dp(4), dp(4), dp(4), dp(4));
+        menu.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
+        menu.setElevation(dp(3));
+        menu.setVisibility(View.GONE);
+        menu.setAlpha(0.0F);
+        for (int i = 0; i < environments.size(); i++) {
+            if (i > 0) {
+                menu.addView(divider());
+            }
+            ApiClient.EnvironmentOption option = environments.get(i);
+            menu.addView(createEnvironmentOption(option, menu, selector));
+        }
+        return menu;
+    }
+
+    private TextView createEnvironmentOption(final ApiClient.EnvironmentOption option,
+            final LinearLayout menu, final FrameLayout selector) {
+        TextView item = normalText(option.getName());
+        item.setTextSize(13);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setSingleLine(true);
+        item.setPadding(dp(10), 0, dp(10), 0);
+        if (option.getCode().equals(selectedEnvCode)) {
+            item.setTextColor(COLOR_PRIMARY_DARK);
+            item.setBackgroundColor(COLOR_MENU_SELECTED);
+        }
+        item.setOnClickListener(view -> {
+            selectEnvironment(option.getCode());
+            collapseEnvironmentMenu(menu, selector);
+        });
+        item.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(40)));
+        return item;
+    }
+
+    private void toggleEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
+        if (menu.getVisibility() == View.VISIBLE) {
+            collapseEnvironmentMenu(menu, selector);
+            return;
+        }
+        expandEnvironmentMenu(menu, selector);
+    }
+
+    private void expandEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
+        menu.setVisibility(View.VISIBLE);
+        menu.setAlpha(0.0F);
+        menu.setTranslationY(-dp(4));
+        menu.animate().alpha(1.0F).translationY(0.0F)
+                .setDuration(MENU_ANIMATION_DURATION_MILLIS)
+                .setInterpolator(new DecelerateInterpolator())
+                .start();
+        rotateEnvironmentArrow(selector, 180.0F);
+    }
+
+    private void collapseEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
+        menu.animate().alpha(0.0F).translationY(-dp(4))
+                .setDuration(MENU_ANIMATION_DURATION_MILLIS)
+                .setInterpolator(new DecelerateInterpolator())
+                .withEndAction(() -> {
+                    menu.setVisibility(View.GONE);
+                    menu.setTranslationY(0.0F);
+                }).start();
+        rotateEnvironmentArrow(selector, 0.0F);
+    }
+
+    private void rotateEnvironmentArrow(FrameLayout selector, float rotation) {
+        View arrow = (View) selector.getTag();
+        if (arrow != null) {
+            arrow.animate().rotation(rotation)
+                    .setDuration(MENU_ANIMATION_DURATION_MILLIS)
+                    .setInterpolator(new DecelerateInterpolator()).start();
+        }
     }
 
     private List<ApiClient.EnvironmentOption> completeEnvironments(
@@ -630,9 +592,10 @@ public class MainActivity extends Activity {
         return false;
     }
 
-    private void selectEnvironment(String value) {
+    private void selectEnvironment(String environmentCode) {
         for (ApiClient.EnvironmentOption option : environments) {
-            if (option.toString().equals(value) && !option.getCode().equals(selectedEnvCode)) {
+            if (option.getCode().equals(environmentCode)
+                    && !option.getCode().equals(selectedEnvCode)) {
                 selectedEnvCode = option.getCode();
                 loadVersions();
                 return;
@@ -649,7 +612,8 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(createAppIdentity(release, status), identityParams);
-        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(140), dp(38)));
+        header.addView(createEnvironmentDropdown(),
+                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), -2));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
@@ -667,12 +631,6 @@ public class MainActivity extends Activity {
             }
         });
         card.addView(actionButton, prominentButtonParams());
-        return card;
-    }
-
-    private View createEnvironmentPickerCard() {
-        LinearLayout card = cardLayout();
-        card.addView(createEnvironmentSpinner());
         return card;
     }
 
@@ -698,7 +656,8 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams identityParams = new LinearLayout.LayoutParams(0, -2, 1);
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(identity, identityParams);
-        header.addView(createEnvironmentSpinner(), new LinearLayout.LayoutParams(dp(140), dp(38)));
+        header.addView(createEnvironmentDropdown(),
+                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), -2));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
@@ -1077,15 +1036,6 @@ public class MainActivity extends Activity {
         return appCode;
     }
 
-    private String productDisplayValue() {
-        for (AppRelease product : products) {
-            if (product.getAppCode().equals(selectedAppCode)) {
-                return product.getAppName() + "（" + product.getAppCode() + "）";
-            }
-        }
-        return products.isEmpty() ? "" : products.get(0).getAppName() + "（" + products.get(0).getAppCode() + "）";
-    }
-
     private String environmentDisplayValue() {
         for (ApiClient.EnvironmentOption option : environments) {
             if (option.getCode().equals(selectedEnvCode)) {
@@ -1204,46 +1154,6 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private View createSpinner(String label, String[] values, String selectedValue, final SpinnerAction action) {
-        LinearLayout panel = verticalLayout();
-        TextView labelView = smallText(label);
-        labelView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        panel.addView(labelView);
-        Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, values);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setSelection(indexOf(values, selectedValue));
-        spinner.setPadding(dp(12), 0, dp(12), 0);
-        spinner.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(12)));
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position >= 0 && position < parent.getCount()) {
-                    action.onSelected(String.valueOf(parent.getItemAtPosition(position)));
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // No action needed.
-            }
-        });
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(-1, dp(48));
-        spinnerParams.setMargins(0, dp(6), 0, dp(10));
-        panel.addView(spinner, spinnerParams);
-        return panel;
-    }
-
-    private int indexOf(String[] values, String selectedValue) {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i].equals(selectedValue)) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     private String safeFileName(String fileName) {
         String value = fileName == null || fileName.trim().isEmpty() ? "app-release.apk" : fileName;
         return value.replaceAll("[^a-zA-Z0-9._-]", "_");
@@ -1285,7 +1195,7 @@ public class MainActivity extends Activity {
         icon.setTextSize(30);
         icon.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(75, 91, 255), dp(16)));
+        icon.setBackground(gradientDrawable(COLOR_PRIMARY, Color.rgb(130, 136, 218), dp(16)));
         container.addView(icon, new FrameLayout.LayoutParams(-1, -1));
 
         if (iconUrl != null && !iconUrl.trim().isEmpty()) {
@@ -1539,7 +1449,4 @@ public class MainActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private interface SpinnerAction {
-        void onSelected(String value);
-    }
 }
