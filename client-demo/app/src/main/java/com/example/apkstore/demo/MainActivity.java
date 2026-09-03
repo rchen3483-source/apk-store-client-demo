@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -23,6 +24,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -459,16 +461,9 @@ public class MainActivity extends Activity {
     }
 
     private View createEnvironmentDropdown() {
-        LinearLayout container = verticalLayout();
-        container.setClipChildren(false);
-        FrameLayout selector = createEnvironmentSelector();
-        LinearLayout menu = createEnvironmentMenu(selector);
-        selector.setOnClickListener(view -> toggleEnvironmentMenu(menu, selector));
-        container.addView(selector, new LinearLayout.LayoutParams(-1, dp(42)));
-        LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(-1, -2);
-        menuParams.setMargins(0, dp(6), 0, 0);
-        container.addView(menu, menuParams);
-        return container;
+        final FrameLayout selector = createEnvironmentSelector();
+        selector.setOnClickListener(view -> showEnvironmentMenu(selector));
+        return selector;
     }
 
     private FrameLayout createEnvironmentSelector() {
@@ -493,25 +488,39 @@ public class MainActivity extends Activity {
         return selector;
     }
 
-    private LinearLayout createEnvironmentMenu(final FrameLayout selector) {
+    private void showEnvironmentMenu(final FrameLayout selector) {
         LinearLayout menu = verticalLayout();
         menu.setPadding(dp(4), dp(4), dp(4), dp(4));
         menu.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(10)));
-        menu.setElevation(dp(3));
-        menu.setVisibility(View.GONE);
+        int width = selector.getWidth() > 0 ? selector.getWidth() : dp(ENVIRONMENT_SELECTOR_WIDTH_DP);
+        PopupWindow popup = new PopupWindow(menu, width, -2, true);
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        popup.setOutsideTouchable(true);
+        popup.setElevation(dp(8));
+        popup.setOnDismissListener(() -> rotateEnvironmentArrow(selector, 0.0F));
+        populateEnvironmentMenu(menu, popup);
+        popup.showAsDropDown(selector, 0, dp(6));
         menu.setAlpha(0.0F);
+        menu.setTranslationY(-dp(4));
+        menu.animate().alpha(1.0F).translationY(0.0F)
+                .setDuration(MENU_ANIMATION_DURATION_MILLIS)
+                .setInterpolator(new DecelerateInterpolator())
+                .start();
+        rotateEnvironmentArrow(selector, 180.0F);
+    }
+
+    private void populateEnvironmentMenu(LinearLayout menu, final PopupWindow popup) {
         for (int i = 0; i < environments.size(); i++) {
             if (i > 0) {
                 menu.addView(divider());
             }
             ApiClient.EnvironmentOption option = environments.get(i);
-            menu.addView(createEnvironmentOption(option, menu, selector));
+            menu.addView(createEnvironmentOption(option, popup));
         }
-        return menu;
     }
 
     private TextView createEnvironmentOption(final ApiClient.EnvironmentOption option,
-            final LinearLayout menu, final FrameLayout selector) {
+            final PopupWindow popup) {
         TextView item = normalText(option.getName());
         item.setTextSize(13);
         item.setGravity(Gravity.CENTER_VERTICAL);
@@ -523,40 +532,10 @@ public class MainActivity extends Activity {
         }
         item.setOnClickListener(view -> {
             selectEnvironment(option.getCode());
-            collapseEnvironmentMenu(menu, selector);
+            popup.dismiss();
         });
         item.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(40)));
         return item;
-    }
-
-    private void toggleEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
-        if (menu.getVisibility() == View.VISIBLE) {
-            collapseEnvironmentMenu(menu, selector);
-            return;
-        }
-        expandEnvironmentMenu(menu, selector);
-    }
-
-    private void expandEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
-        menu.setVisibility(View.VISIBLE);
-        menu.setAlpha(0.0F);
-        menu.setTranslationY(-dp(4));
-        menu.animate().alpha(1.0F).translationY(0.0F)
-                .setDuration(MENU_ANIMATION_DURATION_MILLIS)
-                .setInterpolator(new DecelerateInterpolator())
-                .start();
-        rotateEnvironmentArrow(selector, 180.0F);
-    }
-
-    private void collapseEnvironmentMenu(LinearLayout menu, FrameLayout selector) {
-        menu.animate().alpha(0.0F).translationY(-dp(4))
-                .setDuration(MENU_ANIMATION_DURATION_MILLIS)
-                .setInterpolator(new DecelerateInterpolator())
-                .withEndAction(() -> {
-                    menu.setVisibility(View.GONE);
-                    menu.setTranslationY(0.0F);
-                }).start();
-        rotateEnvironmentArrow(selector, 0.0F);
     }
 
     private void rotateEnvironmentArrow(FrameLayout selector, float rotation) {
@@ -613,7 +592,7 @@ public class MainActivity extends Activity {
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(createAppIdentity(release, status), identityParams);
         header.addView(createEnvironmentDropdown(),
-                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), -2));
+                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), dp(42)));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
@@ -657,7 +636,7 @@ public class MainActivity extends Activity {
         identityParams.setMargins(0, 0, dp(8), 0);
         header.addView(identity, identityParams);
         header.addView(createEnvironmentDropdown(),
-                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), -2));
+                new LinearLayout.LayoutParams(dp(ENVIRONMENT_SELECTOR_WIDTH_DP), dp(42)));
         LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(-1, -2);
         headerParams.setMargins(0, 0, 0, dp(8));
         card.addView(header, headerParams);
