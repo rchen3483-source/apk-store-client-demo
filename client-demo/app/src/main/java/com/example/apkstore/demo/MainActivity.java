@@ -15,6 +15,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewOutlineProvider;
@@ -56,24 +58,26 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    /** 低饱和炭灰蓝主题，降低纯黑与高亮蓝之间的视觉冲突。 */
-    private static final int COLOR_PRIMARY = Color.rgb(98, 105, 198);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(164, 169, 238);
-    private static final int COLOR_PRIMARY_SOFT = Color.rgb(45, 48, 74);
-    private static final int COLOR_BACKGROUND = Color.rgb(23, 25, 35);
-    private static final int COLOR_PANEL = Color.rgb(32, 35, 46);
-    private static final int COLOR_SURFACE = Color.rgb(39, 43, 56);
-    private static final int COLOR_BORDER = Color.rgb(53, 58, 74);
-    private static final int COLOR_DIVIDER = Color.rgb(48, 53, 67);
-    private static final int COLOR_TEXT = Color.rgb(242, 241, 245);
-    private static final int COLOR_MUTED = Color.rgb(166, 167, 179);
-    private static final int COLOR_SUCCESS = Color.rgb(110, 190, 145);
-    private static final int COLOR_SUCCESS_SOFT = Color.rgb(38, 59, 50);
-    private static final int COLOR_WARNING = Color.rgb(214, 168, 92);
-    private static final int COLOR_WARNING_SOFT = Color.rgb(64, 53, 34);
-    private static final int COLOR_DANGER = Color.rgb(220, 122, 130);
-    private static final int COLOR_DANGER_SOFT = Color.rgb(70, 42, 49);
-    private static final int COLOR_MENU_SELECTED = Color.rgb(54, 58, 88);
+    /** 参考图主色：紫色图标、深文本、浅边框，运行时可整体切换明暗。 */
+    private int COLOR_PRIMARY = Color.rgb(110, 86, 207);
+    private int COLOR_PRIMARY_DARK = Color.rgb(110, 86, 207);
+    private int COLOR_PRIMARY_SOFT = Color.rgb(245, 242, 255);
+    private int COLOR_BACKGROUND = Color.rgb(255, 255, 255);
+    private int COLOR_PANEL = Color.rgb(255, 255, 255);
+    private int COLOR_SURFACE = Color.rgb(255, 255, 255);
+    private int COLOR_BORDER = Color.rgb(230, 232, 235);
+    private int COLOR_DIVIDER = Color.rgb(230, 232, 235);
+    private int COLOR_TEXT = Color.rgb(22, 24, 29);
+    private int COLOR_MUTED = Color.rgb(95, 99, 104);
+    private int COLOR_BODY = Color.rgb(95, 99, 104);
+    private int COLOR_SUCCESS = Color.rgb(30, 142, 90);
+    private int COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 239);
+    private int COLOR_WARNING = Color.rgb(182, 106, 0);
+    private int COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
+    private int COLOR_DANGER = Color.rgb(217, 48, 37);
+    private int COLOR_DANGER_SOFT = Color.rgb(253, 235, 232);
+    private int COLOR_MENU_SELECTED = Color.rgb(245, 242, 255);
+    private int COLOR_APP_ROW = Color.rgb(255, 255, 255);
     private static final int ENVIRONMENT_SELECTOR_WIDTH_DP = 156;
     private static final long MENU_ANIMATION_DURATION_MILLIS = 180L;
     private static final String[][] DEFAULT_ENVIRONMENTS = {
@@ -93,7 +97,9 @@ public class MainActivity extends Activity {
     private final Set<String> iconLoading = ConcurrentHashMap.newKeySet();
 
     private LinearLayout contentLayout;
+    private LinearLayout appsListLayout;
     private View floatingBackButton;
+    private Button floatingThemeButton;
     private SwipeRefreshLayout refreshLayout;
     private List<AppRelease> products = new ArrayList<>();
     private List<ApiClient.EnvironmentOption> environments = new ArrayList<>();
@@ -101,11 +107,13 @@ public class MainActivity extends Activity {
     private AppRelease latestRelease;
     private String selectedAppCode;
     private String selectedEnvCode;
+    private String appSearchQuery = "";
     private String historySearchQuery = "";
     private String errorMessage;
     private boolean productsLoaded;
     private boolean environmentsLoaded;
     private boolean versionsLoading;
+    private boolean darkTheme;
     private long taskSequence = 1L;
 
     @Override
@@ -122,6 +130,7 @@ public class MainActivity extends Activity {
     }
 
     private void showMainPage() {
+        applyThemeColors();
         LinearLayout root = verticalLayout();
         root.setBackgroundColor(COLOR_BACKGROUND);
         FrameLayout contentFrame = new FrameLayout(this);
@@ -132,21 +141,76 @@ public class MainActivity extends Activity {
         backParams.gravity = Gravity.TOP | Gravity.START;
         backParams.setMargins(dp(14), dp(24), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
+        floatingThemeButton = themeToggleButton();
+        FrameLayout.LayoutParams themeParams = new FrameLayout.LayoutParams(dp(68), dp(40));
+        themeParams.gravity = Gravity.TOP | Gravity.END;
+        themeParams.setMargins(0, dp(25), dp(16), 0);
+        contentFrame.addView(floatingThemeButton, themeParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         renderPage();
+    }
+
+    private void applyThemeColors() {
+        if (darkTheme) {
+            COLOR_PRIMARY = Color.rgb(132, 112, 222);
+            COLOR_PRIMARY_DARK = Color.rgb(174, 160, 245);
+            COLOR_PRIMARY_SOFT = Color.rgb(45, 41, 78);
+            COLOR_BACKGROUND = Color.rgb(22, 24, 29);
+            COLOR_PANEL = Color.rgb(27, 30, 36);
+            COLOR_SURFACE = Color.rgb(32, 35, 42);
+            COLOR_BORDER = Color.rgb(53, 56, 64);
+            COLOR_DIVIDER = Color.rgb(43, 46, 54);
+            COLOR_TEXT = Color.rgb(245, 247, 250);
+            COLOR_MUTED = Color.rgb(165, 170, 179);
+            COLOR_BODY = Color.rgb(193, 198, 207);
+            COLOR_SUCCESS = Color.rgb(80, 200, 132);
+            COLOR_SUCCESS_SOFT = Color.rgb(31, 58, 45);
+            COLOR_WARNING = Color.rgb(232, 160, 44);
+            COLOR_WARNING_SOFT = Color.rgb(70, 53, 25);
+            COLOR_DANGER = Color.rgb(248, 98, 85);
+            COLOR_DANGER_SOFT = Color.rgb(75, 39, 39);
+            COLOR_MENU_SELECTED = Color.rgb(45, 41, 78);
+            COLOR_APP_ROW = Color.rgb(22, 24, 29);
+        } else {
+            COLOR_PRIMARY = Color.rgb(110, 86, 207);
+            COLOR_PRIMARY_DARK = Color.rgb(110, 86, 207);
+            COLOR_PRIMARY_SOFT = Color.rgb(245, 242, 255);
+            COLOR_BACKGROUND = Color.rgb(255, 255, 255);
+            COLOR_PANEL = Color.rgb(255, 255, 255);
+            COLOR_SURFACE = Color.rgb(255, 255, 255);
+            COLOR_BORDER = Color.rgb(230, 232, 235);
+            COLOR_DIVIDER = Color.rgb(230, 232, 235);
+            COLOR_TEXT = Color.rgb(22, 24, 29);
+            COLOR_MUTED = Color.rgb(95, 99, 104);
+            COLOR_BODY = Color.rgb(95, 99, 104);
+            COLOR_SUCCESS = Color.rgb(30, 142, 90);
+            COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 239);
+            COLOR_WARNING = Color.rgb(182, 106, 0);
+            COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
+            COLOR_DANGER = Color.rgb(217, 48, 37);
+            COLOR_DANGER_SOFT = Color.rgb(253, 235, 232);
+            COLOR_MENU_SELECTED = Color.rgb(245, 242, 255);
+            COLOR_APP_ROW = Color.rgb(255, 255, 255);
+        }
+        getWindow().setStatusBarColor(COLOR_BACKGROUND);
+        getWindow().setNavigationBarColor(COLOR_BACKGROUND);
+        int systemUiFlags = darkTheme ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        getWindow().getDecorView().setSystemUiVisibility(systemUiFlags);
     }
 
     private View createHeader() {
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(18), dp(16), dp(18), dp(14));
-        header.setBackgroundColor(COLOR_PANEL);
-        header.setElevation(dp(2));
+        header.setBackgroundColor(COLOR_BACKGROUND);
+        header.setElevation(0);
         LinearLayout titleGroup = verticalLayout();
-        titleGroup.addView(titleText("APK 商店", 22));
+        titleGroup.addView(titleText("应用", 27));
+        titleGroup.addView(smallText("管理内部构建与部署环境"));
         header.addView(titleGroup, new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(environmentBadge("研发环境"));
+        header.addView(themeToggleButton(), new LinearLayout.LayoutParams(dp(72), dp(40)));
         return header;
     }
 
@@ -154,16 +218,29 @@ public class MainActivity extends Activity {
         if (contentLayout == null) {
             return;
         }
+        applyThemeColors();
+        contentLayout.setBackgroundColor(COLOR_BACKGROUND);
+        appsListLayout = null;
         if (floatingBackButton != null) {
             floatingBackButton.setVisibility(selectedAppCode == null ? View.GONE : View.VISIBLE);
+            if (floatingBackButton instanceof TextView) {
+                ((TextView) floatingBackButton).setTextColor(COLOR_TEXT);
+            }
+        }
+        if (floatingThemeButton != null) {
+            floatingThemeButton.setVisibility(selectedAppCode == null ? View.GONE : View.VISIBLE);
+            floatingThemeButton.setText(darkTheme ? "浅色" : "深色");
+            floatingThemeButton.setTextColor(COLOR_PRIMARY);
+            floatingThemeButton.setBackground(roundedDrawable(COLOR_PRIMARY_SOFT, COLOR_PRIMARY_SOFT, dp(12)));
+            floatingThemeButton.setContentDescription(darkTheme ? "切换浅色模式" : "切换深色模式");
         }
         contentLayout.removeAllViews();
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(COLOR_BACKGROUND);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        // 详情页为悬浮返回按钮预留呼吸空间，避免内容贴住系统状态栏。
-        int topPadding = selectedAppCode == null ? dp(22) : dp(64);
-        page.setPadding(dp(14), topPadding, dp(14), dp(28));
+        int topPadding = selectedAppCode == null ? dp(28) : dp(64);
+        page.setPadding(dp(16), topPadding, dp(16), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
         }
@@ -327,28 +404,222 @@ public class MainActivity extends Activity {
     private View createAppsListPanel() {
         LinearLayout panel = verticalLayout();
         panel.addView(createAppsSectionHeader());
-        for (AppRelease product : products) {
-            panel.addView(createProductCard(product));
-        }
+        panel.addView(createAppSearchBar());
+        LinearLayout list = verticalLayout();
+        appsListLayout = list;
+        list.setBackground(roundedDrawable(COLOR_APP_ROW, COLOR_DIVIDER, dp(1)));
+        renderAppsListRows();
+        panel.addView(list, new LinearLayout.LayoutParams(-1, -2));
         return panel;
     }
 
-    /** 应用工作区标题，结构对应 TestApp 的“模块标题 + 描述 + 快捷操作”。 */
+    private void renderAppsListRows() {
+        if (appsListLayout == null) {
+            return;
+        }
+        appsListLayout.removeAllViews();
+        List<AppRelease> visibleProducts = filteredProducts();
+        if (visibleProducts.isEmpty()) {
+            appsListLayout.addView(emptyListRow("没有匹配的应用"));
+        } else {
+            for (int i = 0; i < visibleProducts.size(); i++) {
+                if (i > 0) {
+                    appsListLayout.addView(divider());
+                }
+                appsListLayout.addView(createProductRow(visibleProducts.get(i)));
+            }
+        }
+    }
+
     private View createAppsSectionHeader() {
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout heading = verticalLayout();
-        heading.addView(titleText("应用", 19));
+        heading.addView(titleText("应用", 28));
         heading.addView(smallText("管理内部构建与部署环境"));
         header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-        Button refreshButton = compactButton("刷新", true);
+        Button refreshButton = iconButton("↻");
         refreshButton.setContentDescription("刷新应用列表");
         refreshButton.setOnClickListener(view -> loadProducts());
-        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(68), dp(38)));
+        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        LinearLayout.LayoutParams themeParams = new LinearLayout.LayoutParams(dp(68), dp(44));
+        themeParams.setMargins(dp(8), 0, 0, 0);
+        header.addView(themeToggleButton(), themeParams);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, dp(2), 0, dp(14));
+        params.setMargins(0, 0, 0, dp(20));
         header.setLayoutParams(params);
         return header;
+    }
+
+    private View createAppSearchBar() {
+        FrameLayout shell = new FrameLayout(this);
+        shell.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(6)));
+        TextView icon = normalText("⌕");
+        icon.setTextColor(COLOR_MUTED);
+        icon.setTextSize(22);
+        icon.setGravity(Gravity.CENTER);
+        shell.addView(icon, new FrameLayout.LayoutParams(dp(38), -1, Gravity.START));
+        EditText searchInput = new EditText(this);
+        searchInput.setHint("搜索应用");
+        searchInput.setHintTextColor(COLOR_MUTED);
+        searchInput.setTextColor(COLOR_TEXT);
+        searchInput.setTextSize(14);
+        searchInput.setText(appSearchQuery);
+        searchInput.setSingleLine(true);
+        searchInput.setGravity(Gravity.CENTER_VERTICAL);
+        searchInput.setPadding(dp(40), 0, dp(12), 0);
+        searchInput.setBackgroundColor(Color.TRANSPARENT);
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // No-op.
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String value = s == null ? "" : s.toString();
+                if (!value.equals(appSearchQuery)) {
+                    appSearchQuery = value;
+                    renderAppsListRows();
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                // No-op.
+            }
+        });
+        shell.addView(searchInput, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(48));
+        params.setMargins(0, 0, 0, dp(18));
+        shell.setLayoutParams(params);
+        return shell;
+    }
+
+    private List<AppRelease> filteredProducts() {
+        String query = appSearchQuery == null ? "" : appSearchQuery.trim().toLowerCase(Locale.CHINA);
+        if (query.isEmpty()) {
+            return products;
+        }
+        List<AppRelease> visibleProducts = new ArrayList<>(products.size());
+        for (AppRelease product : products) {
+            String name = displayText(product.getAppName(), "").toLowerCase(Locale.CHINA);
+            String code = displayText(product.getAppCode(), "").toLowerCase(Locale.CHINA);
+            if (name.contains(query) || code.contains(query)) {
+                visibleProducts.add(product);
+            }
+        }
+        return visibleProducts;
+    }
+
+    private View emptyListRow(String message) {
+        TextView row = smallText(message);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(dp(16), 0, dp(16), 0);
+        row.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(72)));
+        return row;
+    }
+
+    private View createProductRow(final AppRelease product) {
+        LinearLayout row = horizontalLayout();
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(10), dp(12));
+        row.setMinimumHeight(dp(80));
+        row.setBackgroundColor(COLOR_APP_ROW);
+        row.setOnClickListener(view -> openProduct(product.getAppCode()));
+
+        row.addView(appIcon(product.getAppName(), product.getIconUrl()),
+                new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        LinearLayout details = verticalLayout();
+        details.setPadding(dp(12), 0, dp(8), 0);
+        LinearLayout nameRow = horizontalLayout();
+        nameRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView name = titleText(displayText(product.getAppName(), "未命名应用"), 18);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameRow.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView code = smallText("  " + displayText(product.getAppCode(), "-"));
+        code.setSingleLine(true);
+        code.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        code.setMaxWidth(dp(132));
+        nameRow.addView(code, new LinearLayout.LayoutParams(-2, -2));
+        details.addView(nameRow);
+        TextView packageName = smallText(displayText(product.getPackageName(), "点开后选择环境"));
+        packageName.setSingleLine(true);
+        packageName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(packageName);
+        row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+
+        LinearLayout meta = verticalLayout();
+        meta.setGravity(Gravity.END);
+        TextView version = normalText(formatVersion(product));
+        version.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        version.setTextSize(13);
+        version.setGravity(Gravity.END);
+        meta.addView(version);
+        meta.addView(environmentStatus(product));
+        row.addView(meta, new LinearLayout.LayoutParams(dp(90), -2));
+
+        TextView action = normalText("打开");
+        action.setTextColor(COLOR_PRIMARY);
+        action.setTextSize(13);
+        action.setGravity(Gravity.CENTER);
+        row.addView(action, new LinearLayout.LayoutParams(dp(42), dp(40)));
+
+        TextView chevron = normalText("›");
+        chevron.setTextColor(COLOR_MUTED);
+        chevron.setTextSize(28);
+        chevron.setGravity(Gravity.CENTER);
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(18), dp(44)));
+        return row;
+    }
+
+    private String formatVersion(AppRelease product) {
+        String version = displayText(product.getVersionName(), "-");
+        return "v" + version;
+    }
+
+    private View environmentStatus(AppRelease product) {
+        LinearLayout status = horizontalLayout();
+        status.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        TextView dot = normalText("●");
+        int envColor = environmentColor(product.getEnvCode());
+        dot.setTextColor(envColor);
+        dot.setTextSize(10);
+        status.addView(dot);
+        TextView label = smallText(" " + productEnvironmentLabel(product));
+        label.setTextColor(envColor);
+        label.setSingleLine(true);
+        status.addView(label);
+        return status;
+    }
+
+    private String productEnvironmentLabel(AppRelease product) {
+        String code = product.getEnvCode();
+        if (code == null || code.trim().isEmpty()) {
+            return "点开选择";
+        }
+        if ("dev".equals(code)) {
+            return "开发环境";
+        }
+        if ("test".equals(code) || "sit_test".equals(code) || "online_test".equals(code)) {
+            return "测试环境";
+        }
+        if ("prod".equals(code)) {
+            return "生产环境";
+        }
+        return code;
+    }
+
+    private int environmentColor(String envCode) {
+        if ("prod".equals(envCode)) {
+            return COLOR_DANGER;
+        }
+        if ("test".equals(envCode) || "sit_test".equals(envCode) || "online_test".equals(envCode)) {
+            return COLOR_WARNING;
+        }
+        return COLOR_SUCCESS;
     }
 
     private View createProductCard(final AppRelease product) {
@@ -1247,7 +1518,7 @@ public class MainActivity extends Activity {
 
     private TextView bodyText(String text) {
         TextView view = normalText(text);
-        view.setTextColor(Color.rgb(176, 188, 205));
+        view.setTextColor(COLOR_BODY);
         view.setTextSize(14);
         view.setLineSpacing(dp(3), 1.15F);
         view.setPadding(0, dp(12), 0, dp(4));
@@ -1290,6 +1561,28 @@ public class MainActivity extends Activity {
 
     private TextView environmentBadge(String text) {
         return pill(text, COLOR_PRIMARY, COLOR_PRIMARY_SOFT, COLOR_PRIMARY);
+    }
+
+    private Button themeToggleButton() {
+        Button button = secondaryButton(darkTheme ? "浅色" : "深色");
+        button.setTextSize(13);
+        button.setContentDescription(darkTheme ? "切换浅色模式" : "切换深色模式");
+        button.setOnClickListener(view -> {
+            darkTheme = !darkTheme;
+            applyThemeColors();
+            renderPage();
+        });
+        return button;
+    }
+
+    private Button iconButton(String text) {
+        Button button = secondaryButton(text);
+        button.setTextColor(COLOR_TEXT);
+        button.setTextSize(24);
+        button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
+        button.setPadding(0, 0, 0, dp(2));
+        button.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(6)));
+        return button;
     }
 
     private TextView pill(String text, int textColor, int backgroundColor, int strokeColor) {
