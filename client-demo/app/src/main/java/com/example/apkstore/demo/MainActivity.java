@@ -239,7 +239,7 @@ public class MainActivity extends Activity {
         scrollView.setBackgroundColor(COLOR_BACKGROUND);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        int topPadding = selectedAppCode == null ? dp(28) : dp(64);
+        int topPadding = selectedAppCode == null ? dp(28) : dp(88);
         page.setPadding(dp(16), topPadding, dp(16), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
@@ -528,38 +528,16 @@ public class MainActivity extends Activity {
         row.setBackgroundColor(COLOR_APP_ROW);
         row.setOnClickListener(view -> openProduct(product.getAppCode()));
 
-        row.addView(appIcon(product.getAppName(), product.getIconUrl()),
+        row.addView(appIcon(productDisplayName(product), product.getIconUrl()),
                 new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         LinearLayout details = verticalLayout();
         details.setPadding(dp(12), 0, dp(8), 0);
-        LinearLayout nameRow = horizontalLayout();
-        nameRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView name = titleText(displayText(product.getAppName(), "未命名应用"), 18);
+        TextView name = titleText(productDisplayName(product), 18);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        nameRow.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView code = smallText("  " + displayText(product.getAppCode(), "-"));
-        code.setSingleLine(true);
-        code.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        code.setMaxWidth(dp(132));
-        nameRow.addView(code, new LinearLayout.LayoutParams(-2, -2));
-        details.addView(nameRow);
-        TextView packageName = smallText(displayText(product.getPackageName(), "点开后选择环境"));
-        packageName.setSingleLine(true);
-        packageName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        details.addView(packageName);
+        details.addView(name);
         row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-
-        LinearLayout meta = verticalLayout();
-        meta.setGravity(Gravity.END);
-        TextView version = normalText(formatVersion(product));
-        version.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        version.setTextSize(13);
-        version.setGravity(Gravity.END);
-        meta.addView(version);
-        meta.addView(environmentStatus(product));
-        row.addView(meta, new LinearLayout.LayoutParams(dp(90), -2));
 
         TextView action = normalText("打开");
         action.setTextColor(COLOR_PRIMARY);
@@ -578,6 +556,18 @@ public class MainActivity extends Activity {
     private String formatVersion(AppRelease product) {
         String version = displayText(product.getVersionName(), "-");
         return "v" + version;
+    }
+
+    private String productDisplayName(AppRelease product) {
+        String appCode = displayText(product.getAppCode(), "");
+        String appName = displayText(product.getAppName(), "");
+        if (!appName.isEmpty() && !appName.equals(appCode) && !appName.equals(appCode.replace("_", ""))) {
+            return appName;
+        }
+        if ("translation_app".equals(appCode) || "translationapp".equalsIgnoreCase(appName)) {
+            return "翻译 App";
+        }
+        return appCode.isEmpty() ? "未命名应用" : appCode;
     }
 
     private View environmentStatus(AppRelease product) {
