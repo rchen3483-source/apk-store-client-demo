@@ -1,0 +1,23 @@
+client-demo/README.md
+  s_54cdb5bc412373::t_acaf757d6f3d61 13-14
+client-demo/app/src/main/java/com/example/apkstore/demo/MainActivity.java
+  s_54cdb5bc412373::t_90c180a5dea737 19,60-77,93,111-112,148-149,151,153,162-163,169-171,175-178,208-251,376-377,379,382,387,390,393,395,489-493,875,881-948,961,978,1029-1034,1052-1054,1357
+client-demo/app/src/main/res/values/styles.xml
+  s_54cdb5bc412373::t_6faac8ce6c9752 5-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3999d240aff7bd19cb4cd261b101f08ea0e68fb0",
+  "prompts": {},
+  "sessions": {
+    "s_54cdb5bc412373": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a037b8-5077-70c3-b29e-805bcd904cd2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ranchen9 <ranchen9@iflytek.com>"
+    }
+  }
+}
