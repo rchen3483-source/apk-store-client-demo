@@ -10,6 +10,8 @@
 - 按版本号或构建号调用服务端搜索历史版本。
 - 通过版本 `releaseId` 获取下载地址，显示真实下载进度。
 - 下载完成后显示安装按钮，并使用 Android `FileProvider` 打开系统安装确认页。
+- 下载任务集中在独立的“下载与安装”记录页，不再占用应用详情页底部空间。
+- 下载记录支持左右滑动；向右滑动会在左侧显示删除按钮，后台下载中的记录也可以删除。
 - 根据设备已安装包的真实 `versionCode` 显示未安装、可更新、已最新等状态。
 
 ## 研发环境地址
@@ -33,4 +35,3 @@ gradle -p client-demo :app:assembleDebug
 APK 输出路径：`client-demo/app/build/outputs/apk/debug/app-debug.apk`。
 
 本工作区未检测到 Java/Gradle/Android SDK，无法在本地完成 APK 编译；GitHub Actions 或 Android Studio 可直接构建。
-

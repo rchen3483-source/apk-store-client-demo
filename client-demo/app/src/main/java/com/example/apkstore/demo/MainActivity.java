@@ -15,9 +15,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewOutlineProvider;
 import android.view.animation.DecelerateInterpolator;
@@ -58,26 +57,24 @@ import java.util.concurrent.Executors;
  */
 public class MainActivity extends Activity {
 
-    /** 参考图主色：紫色图标、深文本、浅边框，运行时可整体切换明暗。 */
-    private int COLOR_PRIMARY = Color.rgb(110, 86, 207);
-    private int COLOR_PRIMARY_DARK = Color.rgb(110, 86, 207);
-    private int COLOR_PRIMARY_SOFT = Color.rgb(245, 242, 255);
-    private int COLOR_BACKGROUND = Color.rgb(255, 255, 255);
-    private int COLOR_PANEL = Color.rgb(255, 255, 255);
-    private int COLOR_SURFACE = Color.rgb(255, 255, 255);
-    private int COLOR_BORDER = Color.rgb(230, 232, 235);
-    private int COLOR_DIVIDER = Color.rgb(230, 232, 235);
-    private int COLOR_TEXT = Color.rgb(22, 24, 29);
-    private int COLOR_MUTED = Color.rgb(95, 99, 104);
-    private int COLOR_BODY = Color.rgb(95, 99, 104);
-    private int COLOR_SUCCESS = Color.rgb(30, 142, 90);
-    private int COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 239);
-    private int COLOR_WARNING = Color.rgb(182, 106, 0);
-    private int COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
-    private int COLOR_DANGER = Color.rgb(217, 48, 37);
-    private int COLOR_DANGER_SOFT = Color.rgb(253, 235, 232);
-    private int COLOR_MENU_SELECTED = Color.rgb(245, 242, 255);
-    private int COLOR_APP_ROW = Color.rgb(255, 255, 255);
+    /** 低饱和炭灰蓝主题，降低纯黑与高亮蓝之间的视觉冲突。 */
+    private static final int COLOR_PRIMARY = Color.rgb(98, 105, 198);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(164, 169, 238);
+    private static final int COLOR_PRIMARY_SOFT = Color.rgb(45, 48, 74);
+    private static final int COLOR_BACKGROUND = Color.rgb(23, 25, 35);
+    private static final int COLOR_PANEL = Color.rgb(32, 35, 46);
+    private static final int COLOR_SURFACE = Color.rgb(39, 43, 56);
+    private static final int COLOR_BORDER = Color.rgb(53, 58, 74);
+    private static final int COLOR_DIVIDER = Color.rgb(48, 53, 67);
+    private static final int COLOR_TEXT = Color.rgb(242, 241, 245);
+    private static final int COLOR_MUTED = Color.rgb(166, 167, 179);
+    private static final int COLOR_SUCCESS = Color.rgb(110, 190, 145);
+    private static final int COLOR_SUCCESS_SOFT = Color.rgb(38, 59, 50);
+    private static final int COLOR_WARNING = Color.rgb(214, 168, 92);
+    private static final int COLOR_WARNING_SOFT = Color.rgb(64, 53, 34);
+    private static final int COLOR_DANGER = Color.rgb(220, 122, 130);
+    private static final int COLOR_DANGER_SOFT = Color.rgb(70, 42, 49);
+    private static final int COLOR_MENU_SELECTED = Color.rgb(54, 58, 88);
     private static final int ENVIRONMENT_SELECTOR_WIDTH_DP = 156;
     private static final long MENU_ANIMATION_DURATION_MILLIS = 180L;
     private static final String[][] DEFAULT_ENVIRONMENTS = {
@@ -93,13 +90,12 @@ public class MainActivity extends Activity {
     private final ApiClient apiClient = new ApiClient();
     private final List<DownloadTask> taskList = new ArrayList<>(8);
     private final Map<Long, File> downloadedFiles = new HashMap<>();
+    private final Set<Long> deletedTaskIds = ConcurrentHashMap.newKeySet();
     private final Map<String, Bitmap> iconCache = new ConcurrentHashMap<>();
     private final Set<String> iconLoading = ConcurrentHashMap.newKeySet();
 
     private LinearLayout contentLayout;
-    private LinearLayout appsListLayout;
     private View floatingBackButton;
-    private Button floatingThemeButton;
     private SwipeRefreshLayout refreshLayout;
     private List<AppRelease> products = new ArrayList<>();
     private List<ApiClient.EnvironmentOption> environments = new ArrayList<>();
@@ -107,13 +103,13 @@ public class MainActivity extends Activity {
     private AppRelease latestRelease;
     private String selectedAppCode;
     private String selectedEnvCode;
-    private String appSearchQuery = "";
     private String historySearchQuery = "";
     private String errorMessage;
     private boolean productsLoaded;
     private boolean environmentsLoaded;
     private boolean versionsLoading;
-    private boolean darkTheme;
+    /** 是否正在显示独立的下载与安装记录页。 */
+    private boolean showDownloadPage;
     private long taskSequence = 1L;
 
     @Override
@@ -130,7 +126,6 @@ public class MainActivity extends Activity {
     }
 
     private void showMainPage() {
-        applyThemeColors();
         LinearLayout root = verticalLayout();
         root.setBackgroundColor(COLOR_BACKGROUND);
         FrameLayout contentFrame = new FrameLayout(this);
@@ -141,76 +136,21 @@ public class MainActivity extends Activity {
         backParams.gravity = Gravity.TOP | Gravity.START;
         backParams.setMargins(dp(14), dp(24), 0, 0);
         contentFrame.addView(floatingBackButton, backParams);
-        floatingThemeButton = themeToggleButton();
-        FrameLayout.LayoutParams themeParams = new FrameLayout.LayoutParams(dp(68), dp(40));
-        themeParams.gravity = Gravity.TOP | Gravity.END;
-        themeParams.setMargins(0, dp(25), dp(16), 0);
-        contentFrame.addView(floatingThemeButton, themeParams);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         renderPage();
-    }
-
-    private void applyThemeColors() {
-        if (darkTheme) {
-            COLOR_PRIMARY = Color.rgb(132, 112, 222);
-            COLOR_PRIMARY_DARK = Color.rgb(174, 160, 245);
-            COLOR_PRIMARY_SOFT = Color.rgb(45, 41, 78);
-            COLOR_BACKGROUND = Color.rgb(22, 24, 29);
-            COLOR_PANEL = Color.rgb(27, 30, 36);
-            COLOR_SURFACE = Color.rgb(32, 35, 42);
-            COLOR_BORDER = Color.rgb(53, 56, 64);
-            COLOR_DIVIDER = Color.rgb(43, 46, 54);
-            COLOR_TEXT = Color.rgb(245, 247, 250);
-            COLOR_MUTED = Color.rgb(165, 170, 179);
-            COLOR_BODY = Color.rgb(193, 198, 207);
-            COLOR_SUCCESS = Color.rgb(80, 200, 132);
-            COLOR_SUCCESS_SOFT = Color.rgb(31, 58, 45);
-            COLOR_WARNING = Color.rgb(232, 160, 44);
-            COLOR_WARNING_SOFT = Color.rgb(70, 53, 25);
-            COLOR_DANGER = Color.rgb(248, 98, 85);
-            COLOR_DANGER_SOFT = Color.rgb(75, 39, 39);
-            COLOR_MENU_SELECTED = Color.rgb(45, 41, 78);
-            COLOR_APP_ROW = Color.rgb(22, 24, 29);
-        } else {
-            COLOR_PRIMARY = Color.rgb(110, 86, 207);
-            COLOR_PRIMARY_DARK = Color.rgb(110, 86, 207);
-            COLOR_PRIMARY_SOFT = Color.rgb(245, 242, 255);
-            COLOR_BACKGROUND = Color.rgb(255, 255, 255);
-            COLOR_PANEL = Color.rgb(255, 255, 255);
-            COLOR_SURFACE = Color.rgb(255, 255, 255);
-            COLOR_BORDER = Color.rgb(230, 232, 235);
-            COLOR_DIVIDER = Color.rgb(230, 232, 235);
-            COLOR_TEXT = Color.rgb(22, 24, 29);
-            COLOR_MUTED = Color.rgb(95, 99, 104);
-            COLOR_BODY = Color.rgb(95, 99, 104);
-            COLOR_SUCCESS = Color.rgb(30, 142, 90);
-            COLOR_SUCCESS_SOFT = Color.rgb(232, 247, 239);
-            COLOR_WARNING = Color.rgb(182, 106, 0);
-            COLOR_WARNING_SOFT = Color.rgb(255, 246, 225);
-            COLOR_DANGER = Color.rgb(217, 48, 37);
-            COLOR_DANGER_SOFT = Color.rgb(253, 235, 232);
-            COLOR_MENU_SELECTED = Color.rgb(245, 242, 255);
-            COLOR_APP_ROW = Color.rgb(255, 255, 255);
-        }
-        getWindow().setStatusBarColor(COLOR_BACKGROUND);
-        getWindow().setNavigationBarColor(COLOR_BACKGROUND);
-        int systemUiFlags = darkTheme ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        getWindow().getDecorView().setSystemUiVisibility(systemUiFlags);
     }
 
     private View createHeader() {
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(18), dp(16), dp(18), dp(14));
-        header.setBackgroundColor(COLOR_BACKGROUND);
-        header.setElevation(0);
+        header.setBackgroundColor(COLOR_PANEL);
+        header.setElevation(dp(2));
         LinearLayout titleGroup = verticalLayout();
-        titleGroup.addView(titleText("应用", 27));
-        titleGroup.addView(smallText("管理内部构建与部署环境"));
+        titleGroup.addView(titleText("APK 商店", 22));
         header.addView(titleGroup, new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(themeToggleButton(), new LinearLayout.LayoutParams(dp(72), dp(40)));
+        header.addView(environmentBadge("研发环境"));
         return header;
     }
 
@@ -218,33 +158,24 @@ public class MainActivity extends Activity {
         if (contentLayout == null) {
             return;
         }
-        applyThemeColors();
-        contentLayout.setBackgroundColor(COLOR_BACKGROUND);
-        appsListLayout = null;
         if (floatingBackButton != null) {
-            floatingBackButton.setVisibility(selectedAppCode == null ? View.GONE : View.VISIBLE);
-            if (floatingBackButton instanceof TextView) {
-                ((TextView) floatingBackButton).setTextColor(COLOR_TEXT);
-            }
-        }
-        if (floatingThemeButton != null) {
-            floatingThemeButton.setVisibility(selectedAppCode == null ? View.GONE : View.VISIBLE);
-            floatingThemeButton.setText(darkTheme ? "浅色" : "深色");
-            floatingThemeButton.setTextColor(COLOR_PRIMARY);
-            floatingThemeButton.setBackground(roundedDrawable(COLOR_PRIMARY_SOFT, COLOR_PRIMARY_SOFT, dp(12)));
-            floatingThemeButton.setContentDescription(darkTheme ? "切换浅色模式" : "切换深色模式");
+            floatingBackButton.setVisibility(selectedAppCode == null && !showDownloadPage
+                    ? View.GONE : View.VISIBLE);
         }
         contentLayout.removeAllViews();
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(COLOR_BACKGROUND);
         scrollView.setFillViewport(true);
         LinearLayout page = verticalLayout();
-        int topPadding = selectedAppCode == null ? dp(28) : dp(88);
-        page.setPadding(dp(16), topPadding, dp(16), dp(28));
+        // 详情页为悬浮返回按钮预留呼吸空间，避免内容贴住系统状态栏。
+        int topPadding = selectedAppCode == null && !showDownloadPage ? dp(22) : dp(64);
+        page.setPadding(dp(14), topPadding, dp(14), dp(28));
         if (errorMessage != null) {
             page.addView(errorPanel(errorMessage));
         }
-        if (!productsLoaded) {
+        page.addView(createPageToolbar());
+        if (showDownloadPage) {
+            page.addView(createDownloadPage());
+        } else if (!productsLoaded) {
             page.addView(cardLayoutWithText("加载产品中…"));
         } else if (products.isEmpty()) {
             page.addView(cardLayoutWithText("后端暂无可用产品"));
@@ -266,18 +197,56 @@ public class MainActivity extends Activity {
                         "该产品在当前环境下还没有发布 APK。"));
             }
         }
-        if (!taskList.isEmpty()) {
-            page.addView(pageSectionTitle("下载与安装", "下载完成后可直接打开系统安装器"));
-            for (DownloadTask task : taskList) {
-                page.addView(createTaskCard(task));
-            }
-        }
         scrollView.addView(page);
         refreshLayout = new SwipeRefreshLayout(this);
         refreshLayout.setColorSchemeColors(COLOR_PRIMARY);
         refreshLayout.setOnRefreshListener(() -> refreshAll());
         refreshLayout.addView(scrollView, new SwipeRefreshLayout.LayoutParams(-1, -1));
         contentLayout.addView(refreshLayout, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    /** 页面级工具栏，将下载记录从应用详情内容中独立出来。 */
+    private View createPageToolbar() {
+        LinearLayout toolbar = horizontalLayout();
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+        String pageTitle = showDownloadPage ? "下载与安装" : (selectedAppCode == null ? "应用商店" : "应用详情");
+        TextView title = titleText(pageTitle, 20);
+        toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        if (!showDownloadPage) {
+            Button taskButton = compactButton("下载记录" + (taskList.isEmpty() ? "" : " " + taskList.size()), true);
+            taskButton.setContentDescription("打开下载与安装记录");
+            taskButton.setOnClickListener(view -> {
+                showDownloadPage = true;
+                renderPage();
+            });
+            toolbar.addView(taskButton, new LinearLayout.LayoutParams(-2, dp(38)));
+        } else {
+            Button closeButton = compactButton("返回", true);
+            closeButton.setContentDescription("返回应用页面");
+            closeButton.setOnClickListener(view -> {
+                showDownloadPage = false;
+                renderPage();
+            });
+            toolbar.addView(closeButton, new LinearLayout.LayoutParams(-2, dp(38)));
+        }
+        LinearLayout.LayoutParams params = fullWidthParams();
+        params.setMargins(0, 0, 0, dp(14));
+        toolbar.setLayoutParams(params);
+        return toolbar;
+    }
+
+    /** 独立下载与安装记录页，任务在后台运行时仍可打开并删除。 */
+    private View createDownloadPage() {
+        LinearLayout panel = verticalLayout();
+        panel.addView(pageSectionTitle("下载与安装", "下载完成后可直接打开系统安装器；右滑记录可删除"));
+        if (taskList.isEmpty()) {
+            panel.addView(createEmptyCard("暂无下载记录", "从版本页面下载 APK 后，记录会显示在这里。"));
+            return panel;
+        }
+        for (DownloadTask task : taskList) {
+            panel.addView(createSwipeTaskRow(task));
+        }
+        return panel;
     }
 
     private void refreshAll() {
@@ -404,212 +373,28 @@ public class MainActivity extends Activity {
     private View createAppsListPanel() {
         LinearLayout panel = verticalLayout();
         panel.addView(createAppsSectionHeader());
-        panel.addView(createAppSearchBar());
-        LinearLayout list = verticalLayout();
-        appsListLayout = list;
-        list.setBackground(roundedDrawable(COLOR_APP_ROW, COLOR_DIVIDER, dp(1)));
-        renderAppsListRows();
-        panel.addView(list, new LinearLayout.LayoutParams(-1, -2));
+        for (AppRelease product : products) {
+            panel.addView(createProductCard(product));
+        }
         return panel;
     }
 
-    private void renderAppsListRows() {
-        if (appsListLayout == null) {
-            return;
-        }
-        appsListLayout.removeAllViews();
-        List<AppRelease> visibleProducts = filteredProducts();
-        if (visibleProducts.isEmpty()) {
-            appsListLayout.addView(emptyListRow("没有匹配的应用"));
-        } else {
-            for (int i = 0; i < visibleProducts.size(); i++) {
-                if (i > 0) {
-                    appsListLayout.addView(divider());
-                }
-                appsListLayout.addView(createProductRow(visibleProducts.get(i)));
-            }
-        }
-    }
-
+    /** 应用工作区标题，结构对应 TestApp 的“模块标题 + 描述 + 快捷操作”。 */
     private View createAppsSectionHeader() {
         LinearLayout header = horizontalLayout();
         header.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout heading = verticalLayout();
-        heading.addView(titleText("应用", 28));
+        heading.addView(titleText("应用", 19));
         heading.addView(smallText("管理内部构建与部署环境"));
         header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-        Button refreshButton = iconButton("↻");
+        Button refreshButton = compactButton("刷新", true);
         refreshButton.setContentDescription("刷新应用列表");
         refreshButton.setOnClickListener(view -> loadProducts());
-        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        LinearLayout.LayoutParams themeParams = new LinearLayout.LayoutParams(dp(68), dp(44));
-        themeParams.setMargins(dp(8), 0, 0, 0);
-        header.addView(themeToggleButton(), themeParams);
+        header.addView(refreshButton, new LinearLayout.LayoutParams(dp(68), dp(38)));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(20));
+        params.setMargins(0, dp(2), 0, dp(14));
         header.setLayoutParams(params);
         return header;
-    }
-
-    private View createAppSearchBar() {
-        FrameLayout shell = new FrameLayout(this);
-        shell.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(6)));
-        TextView icon = normalText("⌕");
-        icon.setTextColor(COLOR_MUTED);
-        icon.setTextSize(22);
-        icon.setGravity(Gravity.CENTER);
-        shell.addView(icon, new FrameLayout.LayoutParams(dp(38), -1, Gravity.START));
-        EditText searchInput = new EditText(this);
-        searchInput.setHint("搜索应用");
-        searchInput.setHintTextColor(COLOR_MUTED);
-        searchInput.setTextColor(COLOR_TEXT);
-        searchInput.setTextSize(14);
-        searchInput.setText(appSearchQuery);
-        searchInput.setSingleLine(true);
-        searchInput.setGravity(Gravity.CENTER_VERTICAL);
-        searchInput.setPadding(dp(40), 0, dp(12), 0);
-        searchInput.setBackgroundColor(Color.TRANSPARENT);
-        searchInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                // No-op.
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                String value = s == null ? "" : s.toString();
-                if (!value.equals(appSearchQuery)) {
-                    appSearchQuery = value;
-                    renderAppsListRows();
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                // No-op.
-            }
-        });
-        shell.addView(searchInput, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(48));
-        params.setMargins(0, 0, 0, dp(18));
-        shell.setLayoutParams(params);
-        return shell;
-    }
-
-    private List<AppRelease> filteredProducts() {
-        String query = appSearchQuery == null ? "" : appSearchQuery.trim().toLowerCase(Locale.CHINA);
-        if (query.isEmpty()) {
-            return products;
-        }
-        List<AppRelease> visibleProducts = new ArrayList<>(products.size());
-        for (AppRelease product : products) {
-            String name = displayText(product.getAppName(), "").toLowerCase(Locale.CHINA);
-            String code = displayText(product.getAppCode(), "").toLowerCase(Locale.CHINA);
-            if (name.contains(query) || code.contains(query)) {
-                visibleProducts.add(product);
-            }
-        }
-        return visibleProducts;
-    }
-
-    private View emptyListRow(String message) {
-        TextView row = smallText(message);
-        row.setGravity(Gravity.CENTER);
-        row.setPadding(dp(16), 0, dp(16), 0);
-        row.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(72)));
-        return row;
-    }
-
-    private View createProductRow(final AppRelease product) {
-        LinearLayout row = horizontalLayout();
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(14), dp(12), dp(10), dp(12));
-        row.setMinimumHeight(dp(80));
-        row.setBackgroundColor(COLOR_APP_ROW);
-        row.setOnClickListener(view -> openProduct(product.getAppCode()));
-
-        row.addView(appIcon(productDisplayName(product), product.getIconUrl()),
-                new LinearLayout.LayoutParams(dp(48), dp(48)));
-
-        LinearLayout details = verticalLayout();
-        details.setPadding(dp(12), 0, dp(8), 0);
-        TextView name = titleText(productDisplayName(product), 18);
-        name.setSingleLine(true);
-        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        details.addView(name);
-        row.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-
-        TextView action = normalText("打开");
-        action.setTextColor(COLOR_PRIMARY);
-        action.setTextSize(13);
-        action.setGravity(Gravity.CENTER);
-        row.addView(action, new LinearLayout.LayoutParams(dp(42), dp(40)));
-
-        TextView chevron = normalText("›");
-        chevron.setTextColor(COLOR_MUTED);
-        chevron.setTextSize(28);
-        chevron.setGravity(Gravity.CENTER);
-        row.addView(chevron, new LinearLayout.LayoutParams(dp(18), dp(44)));
-        return row;
-    }
-
-    private String formatVersion(AppRelease product) {
-        String version = displayText(product.getVersionName(), "-");
-        return "v" + version;
-    }
-
-    private String productDisplayName(AppRelease product) {
-        String appCode = displayText(product.getAppCode(), "");
-        String appName = displayText(product.getAppName(), "");
-        if (!appName.isEmpty() && !appName.equals(appCode) && !appName.equals(appCode.replace("_", ""))) {
-            return appName;
-        }
-        if ("translation_app".equals(appCode) || "translationapp".equalsIgnoreCase(appName)) {
-            return "翻译 App";
-        }
-        return appCode.isEmpty() ? "未命名应用" : appCode;
-    }
-
-    private View environmentStatus(AppRelease product) {
-        LinearLayout status = horizontalLayout();
-        status.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        TextView dot = normalText("●");
-        int envColor = environmentColor(product.getEnvCode());
-        dot.setTextColor(envColor);
-        dot.setTextSize(10);
-        status.addView(dot);
-        TextView label = smallText(" " + productEnvironmentLabel(product));
-        label.setTextColor(envColor);
-        label.setSingleLine(true);
-        status.addView(label);
-        return status;
-    }
-
-    private String productEnvironmentLabel(AppRelease product) {
-        String code = product.getEnvCode();
-        if (code == null || code.trim().isEmpty()) {
-            return "点开选择";
-        }
-        if ("dev".equals(code)) {
-            return "开发环境";
-        }
-        if ("test".equals(code) || "sit_test".equals(code) || "online_test".equals(code)) {
-            return "测试环境";
-        }
-        if ("prod".equals(code)) {
-            return "生产环境";
-        }
-        return code;
-    }
-
-    private int environmentColor(String envCode) {
-        if ("prod".equals(envCode)) {
-            return COLOR_DANGER;
-        }
-        if ("test".equals(envCode) || "sit_test".equals(envCode) || "online_test".equals(envCode)) {
-            return COLOR_WARNING;
-        }
-        return COLOR_SUCCESS;
     }
 
     private View createProductCard(final AppRelease product) {
@@ -701,6 +486,11 @@ public class MainActivity extends Activity {
         backButton.setBackgroundColor(Color.TRANSPARENT);
         backButton.setElevation(0);
         backButton.setOnClickListener(view -> {
+            if (showDownloadPage) {
+                showDownloadPage = false;
+                renderPage();
+                return;
+            }
             selectedAppCode = null;
             selectedEnvCode = null;
             environments = new ArrayList<>();
@@ -1082,35 +872,80 @@ public class MainActivity extends Activity {
                     installTask(task);
                 }
             });
-            actions.addView(installButton, actionButtonParams(1.0f, 0, dp(6)));
-            Button deleteButton = secondaryButton("删除记录");
-            deleteButton.setContentDescription("删除下载与安装记录");
-            deleteButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    confirmDeleteTask(task);
-                }
-            });
-            actions.addView(deleteButton, actionButtonParams(0.0f, dp(104), 0));
+            actions.addView(installButton, actionButtonParams(1.0f, 0, 0));
             card.addView(actions, taskActionRowParams());
-        } else if (isTaskDeletable(task.getStatus())) {
-            Button deleteButton = secondaryButton("删除记录");
-            deleteButton.setContentDescription("删除下载与安装记录");
-            deleteButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    confirmDeleteTask(task);
-                }
-            });
-            card.addView(deleteButton, prominentButtonParams());
         }
         return card;
     }
 
-    private boolean isTaskDeletable(TaskStatus status) {
-        return TaskStatus.DOWNLOADED.equals(status)
-                || TaskStatus.DONE.equals(status)
-                || TaskStatus.FAILED.equals(status);
+    /**
+     * 创建支持左右滑动的任务容器。兼容用户从任一方向滑动，避免后台任务无法删除。
+     *
+     * @param task 下载任务
+     * @return 可滑动任务行
+     */
+    private View createSwipeTaskRow(final DownloadTask task) {
+        FrameLayout container = new FrameLayout(this);
+        LinearLayout.LayoutParams containerParams = fullWidthParams();
+        containerParams.setMargins(0, 0, 0, dp(12));
+        container.setLayoutParams(containerParams);
+        container.setClipChildren(false);
+
+        Button leftDelete = createSwipeDeleteButton(task);
+        FrameLayout.LayoutParams leftParams = new FrameLayout.LayoutParams(dp(96), -1);
+        leftParams.gravity = Gravity.START;
+        container.addView(leftDelete, leftParams);
+
+        Button rightDelete = createSwipeDeleteButton(task);
+        FrameLayout.LayoutParams rightParams = new FrameLayout.LayoutParams(dp(96), -1);
+        rightParams.gravity = Gravity.END;
+        container.addView(rightDelete, rightParams);
+
+        View card = createTaskCard(task);
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(-1, -2);
+        cardParams.gravity = Gravity.CENTER;
+        container.addView(card, cardParams);
+        leftDelete.setVisibility(View.GONE);
+        rightDelete.setVisibility(View.GONE);
+
+        final float[] downX = new float[1];
+        final boolean[] revealed = new boolean[1];
+        card.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX[0] = event.getRawX();
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    float distance = event.getRawX() - downX[0];
+                    if (Math.abs(distance) >= dp(36)) {
+                        revealed[0] = true;
+                        boolean swipeRight = distance > 0;
+                        card.animate().translationX(swipeRight ? dp(96) : -dp(96))
+                                .setDuration(140L).start();
+                        leftDelete.setVisibility(swipeRight ? View.VISIBLE : View.GONE);
+                        rightDelete.setVisibility(swipeRight ? View.GONE : View.VISIBLE);
+                    } else if (revealed[0] && Math.abs(distance) < dp(12)) {
+                        revealed[0] = false;
+                        card.animate().translationX(0).setDuration(140L).start();
+                        leftDelete.setVisibility(View.GONE);
+                        rightDelete.setVisibility(View.GONE);
+                    }
+                    return true;
+                default:
+                    return true;
+            }
+        });
+        return container;
+    }
+
+    private Button createSwipeDeleteButton(final DownloadTask task) {
+        Button button = secondaryButton("删除");
+        button.setTextColor(COLOR_DANGER);
+        button.setBackground(roundedDrawable(COLOR_DANGER_SOFT, COLOR_DANGER, dp(10)));
+        button.setContentDescription("删除下载与安装记录");
+        button.setOnClickListener(view -> confirmDeleteTask(task));
+        return button;
     }
 
     private void confirmDeleteTask(final DownloadTask task) {
@@ -1123,6 +958,7 @@ public class MainActivity extends Activity {
     }
 
     private void deleteTask(DownloadTask task) {
+        deletedTaskIds.add(task.getTaskId());
         File downloadedFile = downloadedFiles.remove(task.getTaskId());
         if (downloadedFile != null && downloadedFile.exists()) {
             downloadedFile.delete();
@@ -1139,6 +975,7 @@ public class MainActivity extends Activity {
         }
         final DownloadTask task = new DownloadTask(taskSequence++, release);
         taskList.add(0, task);
+        showDownloadPage = true;
         renderPage();
         executor.execute(new Runnable() {
             @Override
@@ -1189,6 +1026,12 @@ public class MainActivity extends Activity {
         mainHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (deletedTaskIds.contains(task.getTaskId())) {
+                    if (target.exists() && !target.delete()) {
+                        target.deleteOnExit();
+                    }
+                    return;
+                }
                 downloadedFiles.put(task.getTaskId(), target);
                 task.update(100, TaskStatus.DOWNLOADED, "下载完成，请点击安装");
                 renderPage();
@@ -1206,6 +1049,9 @@ public class MainActivity extends Activity {
         mainHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (deletedTaskIds.contains(task.getTaskId())) {
+                    return;
+                }
                 task.update(progress, status, message);
                 renderPage();
             }
@@ -1508,7 +1354,7 @@ public class MainActivity extends Activity {
 
     private TextView bodyText(String text) {
         TextView view = normalText(text);
-        view.setTextColor(COLOR_BODY);
+        view.setTextColor(Color.rgb(176, 188, 205));
         view.setTextSize(14);
         view.setLineSpacing(dp(3), 1.15F);
         view.setPadding(0, dp(12), 0, dp(4));
@@ -1551,28 +1397,6 @@ public class MainActivity extends Activity {
 
     private TextView environmentBadge(String text) {
         return pill(text, COLOR_PRIMARY, COLOR_PRIMARY_SOFT, COLOR_PRIMARY);
-    }
-
-    private Button themeToggleButton() {
-        Button button = secondaryButton(darkTheme ? "浅色" : "深色");
-        button.setTextSize(13);
-        button.setContentDescription(darkTheme ? "切换浅色模式" : "切换深色模式");
-        button.setOnClickListener(view -> {
-            darkTheme = !darkTheme;
-            applyThemeColors();
-            renderPage();
-        });
-        return button;
-    }
-
-    private Button iconButton(String text) {
-        Button button = secondaryButton(text);
-        button.setTextColor(COLOR_TEXT);
-        button.setTextSize(24);
-        button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
-        button.setPadding(0, 0, 0, dp(2));
-        button.setBackground(roundedDrawable(COLOR_SURFACE, COLOR_BORDER, dp(6)));
-        return button;
     }
 
     private TextView pill(String text, int textColor, int backgroundColor, int strokeColor) {
